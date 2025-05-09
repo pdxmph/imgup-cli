@@ -1,53 +1,53 @@
-# imgup: Smugmug uploads from a web GUI or the command line
+# imgup: Smugmug uploads from the command line
 
-You can use this to either run a little web interface to upload images to SmugMug and get back markup you can paste into a blog, or do the same from the command line
-
-
-# Up and running (CLI Interface)
-
-See [README-cli.md](README-cli.md). 
-
-
-# Up and running (Web Interface)
+## Description 
+Provides a command line uploader to SmugMug that returns snippets in HTML, org-mode, or Markdown suitable for pasting into a blog post. 
 
 ## Setup
 
-1. Visit your[Smugmug app developer page][sm_app_dev] and apply for an API key.
-1. Check out the repo. 
-2. cd `imgup`
-3. Install your gems
-  - Using rbenv, etc? `bundle install`
-  - Just using your system ruby? `sudo bundle install`
-4. `cp dot_env .env`
-5. Edit `.env`
-  - your API key goes on this line, ex: `SMUGMUG_TOKEN=1234567890ABCDEFGHIJK"
-  - your API secret goes on this line, ex: `SMUGMUG_SECRET=9876543210abcdefGHIJKLMNO`
-  - the album you want to target for uploads goes on this line, ex: `SMUGMUG_UPLOAD_ALBUM_ID=123ABCD`
-    - Get this by making an album or visiting the one you want to use and pulling the trailing id off the album URL under "Gallery Settings"
-4. `ruby imgup.rb`
-5. Visit <https://localhost:4567/>
-6. Step through authentication with Smugmug
-7. If you want to save your oAuth tokens, copy/paste the text on the tokens page into a new file named `.env_oauth`
-7. Start uploading. 
+There's a mildly janky setup involved due to my own issues understanding how to get a pin back:
 
-# Idea
-
-1. Provide a way to quickly upload images to Smugmug and get back copy/pastable Markdown or HTML for sharing in a blog post, etc. (Done)
-2. Provide a way to review recent uploads and get copy/pastable Markdown or HTML for sharing in a blog post, etc. (In progress)
-3. Provide a way to change filenames for uploads to reflect camera and lens metadata. (Someday)
-
-## Personal goals
-
-- Learn how OAUTH works in Ruby. (Done, with caveats)
-
-# Docs
-
-- [Smugmug API](https://www.smugmughelp.com/en/articles/472-smugmug-api)
-
-# TODO
-
-- slugify all the uploads
-- make uploads transient in memory instead of saving them
+1. Install the gem
+2. Run `imgup setup`
+3. imgup will open your browser to a SmugMug auth page. Log in and wait for a failed redirect. Copy the ***entire*** URL and paste it into the CLI. 
+4. imgup will present a list of albums. Pick the one you want to use for sharing your uploads. 
+5. imgup will write your config. 
 
 
-[sm_app_dev]: https://api.smugmug.com/api/developer
+## Usage 
+
+imgup allows you to set the title, caption, and snippet format, e.g. 
+
+`imgup -t "An Old House" -c "A spooky old house sits alone on a street at sunset." -f md your_image.jpg`
+
+The "caption" option will return as the image description or alt text in your snippet. 
+
+Snippet formats include:
+
+- org
+- Markdown (md)
+- html
+
+By default, the snippet is printed to stdout. You can pipe it into `pbcopy` or similar to get it right on your clipboard.
+
+## org snippets
+
+The org snippet leverages a custom image link type:
+
+``` emacs-lisp
+(org-add-link-type
+ "img" nil
+ (lambda (path desc backend)
+   (when (org-export-derived-backend-p backend 'md)
+     (format "![%s](%s)" desc path))))
+```
+
+
+## TODO
+
+- improve onboarding
+- Expand to work with flickr and imgur
+- Provide an upload history in case you lose a snippet and don't have clipboard history
+
+
+(c) 2025 Mike Hall, MIT license 
