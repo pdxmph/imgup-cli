@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.description   = "CLI component extracted from imgup Sinatra app"
   spec.homepage      = "https://github.com/pdxmph/imgup-cli"
   spec.license       = "MIT"
-
+  spec.required_ruby_version = ">= 3.0"
   spec.files         = Dir["lib/**/*.rb"] + ["bin/imgup", "README.md", "imgup-cli.gemspec"]
   spec.executables   = ["imgup"]
   spec.require_paths = ["lib"]
