@@ -19,6 +19,7 @@ GEM
       rexml
     diff-lcs (1.6.1)
     dotenv (2.8.1)
+    flickraw (0.9.10)
     hashdiff (1.1.2)
     hashie (5.0.0)
     launchy (3.1.1)
@@ -69,6 +70,7 @@ PLATFORMS
 
 DEPENDENCIES
   dotenv (~> 2.7)
+  flickraw
   imgup-cli!
   launchy
   multipart-post (~> 2.1)
