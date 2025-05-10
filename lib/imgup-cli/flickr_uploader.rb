@@ -1,3 +1,4 @@
+# lib/imgup-cli/flickr_uploader.rb
 require 'flickraw'
 require_relative 'config'
 
@@ -6,7 +7,7 @@ module ImgupCli
     def initialize(path, title:, caption:)
       @path    = path
       @title   = title || File.basename(path, '.*')
-      @caption = caption
+      @caption = caption.to_s
 
       creds = Config.load
       FlickRaw.api_key       = ENV['FLICKR_KEY']    || creds['flickr_key']
@@ -18,18 +19,25 @@ module ImgupCli
     end
 
     def call
+      # Upload the photo
       photo_id = @flickr.upload_photo(
         @path,
         title:       @title,
         description: @caption
       )
-      info = @flickr.photos.getInfo(photo_id: photo_id)
-      url  = FlickRaw.url_b(info)  # or whatever size you prefer
 
+      # Fetch info for the uploaded photo
+      info = @flickr.photos.getInfo(photo_id: photo_id)
+
+      # Build a URL (size 'b' = large)
+      url = FlickRaw.url_b(info)
+
+      # Return all snippet formats
       {
+        url:      url,
         markdown: "![#{@title}](#{url})",
-        org:       url,
-        html:      "<img src=\"#{url}\" alt=\"#{@title}\">"
+        html:     "<img src=\"#{url}\" alt=\"#{@title}\">",
+        org:      "[[img:#{url}][#{@title}]]"
       }
     end
   end
