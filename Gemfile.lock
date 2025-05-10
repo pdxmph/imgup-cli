@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    imgup-cli (0.6.0)
+    imgup-cli (0.7.0)
       dotenv (~> 2.7)
       multipart-post (~> 2.1)
       oauth (~> 0.5)

@@ -10,16 +10,27 @@ require_relative 'config'
 
 module ImgupCli
   class SmugMugUploader
-    def initialize(filepath, title:, caption:)
-      @filepath = filepath
-      @title    = title || File.basename(filepath, '.*')
-      @caption  = caption || ''
-      load_env
-      setup_oauth_client
+    API_BASE   = 'https://api.smugmug.com'
+    UPLOAD_URL = 'https://upload.smugmug.com/'
+
+    def initialize(path, title:, caption:, tags: [])
+      @path    = path
+      @title   = title    || File.basename(path, '.*')
+      @caption = caption  || ''
+      @tags    = Array(tags).map(&:strip)
+
+      cfg = Config.load
+      @consumer_key        = cfg['consumer_key']
+      @consumer_secret     = cfg['consumer_secret']
+      @access_token        = cfg['access_token']
+      @access_token_secret = cfg['access_token_secret']
+      @album_id            = cfg['album_id'] || abort("❌ No album_id in config; run `imgup setup` first.")
+
+      consumer = OAuth::Consumer.new(@consumer_key, @consumer_secret, site: API_BASE)
+      @access  = OAuth::AccessToken.new(consumer, @access_token, @access_token_secret)
     end
 
-    # Executes the upload and returns a hash of snippets:
-    # { url: ..., markdown: ..., html: ..., org: ... }
+    # Uploads the file and returns the standard snippet hashes.
     def call
       tmp      = copy_to_tmp
       image    = upload_file(tmp)
@@ -30,53 +41,29 @@ module ImgupCli
 
     private
 
-    def load_env
-      cfg = Config.load
-      @consumer_key        = ENV['SMUGMUG_TOKEN']               || cfg['consumer_key']
-      @consumer_secret     = ENV['SMUGMUG_SECRET']              || cfg['consumer_secret']
-      @access_token        = ENV['SMUGMUG_ACCESS_TOKEN']        || cfg['access_token']
-      @access_token_secret = ENV['SMUGMUG_ACCESS_TOKEN_SECRET'] || cfg['access_token_secret']
-      @album_id            = ENV['SMUGMUG_UPLOAD_ALBUM_ID']      || cfg['album_id']
-      @upload_url          = ENV['SMUGMUG_UPLOAD_URL']          || 'https://upload.smugmug.com/'
-      @api_base            = ENV['SMUGMUG_API_URL']             || 'https://api.smugmug.com'
-    end
-
-    def setup_oauth_client
-      @consumer = OAuth::Consumer.new(
-        @consumer_key,
-        @consumer_secret,
-        site: @api_base
-      )
-      @access = OAuth::AccessToken.new(
-        @consumer,
-        @access_token,
-        @access_token_secret
-      )
-    end
-
     def copy_to_tmp
       FileUtils.mkdir_p('tmp')
-      tmp = File.join('tmp', File.basename(@filepath))
-      FileUtils.cp(@filepath, tmp)
+      tmp = File.join('tmp', File.basename(@path))
+      FileUtils.cp(@path, tmp)
       tmp
     end
 
     def upload_file(tmp_path)
-      uri     = URI(@upload_url)
+      uri     = URI(UPLOAD_URL)
       file_io = UploadIO.new(File.open(tmp_path), 'application/octet-stream', File.basename(tmp_path))
       req     = Net::HTTP::Post::Multipart.new(uri.request_uri, 'file' => file_io)
 
-      # SmugMug-specific headers
-      {
-        'X-Smug-AlbumUri'     => "/api/v2/album/#{@album_id}",
-        'X-Smug-ResponseType' => 'JSON',
-        'X-Smug-Version'      => 'v2',
-        'X-Smug-Filename'     => File.basename(tmp_path),
-        'X-Smug-Title'        => @title,
-        'X-Smug-Caption'      => @caption
-      }.each { |k, v| req[k] = v }
+      # Required SmugMug headers
+      req['X-Smug-AlbumUri']     = "/api/v2/album/#{@album_id}"
+      req['X-Smug-ResponseType'] = 'JSON'
+      req['X-Smug-Version']      = 'v2'
+      req['X-Smug-Filename']     = File.basename(tmp_path)
+      req['X-Smug-Title']        = @title
+      req['X-Smug-Caption']      = @caption
+      # ← Just one new line to support tags:
+      req['X-Smug-Keywords']     = @tags.join(',') unless @tags.empty?
 
-      # Sign with OAuth
+      # Sign and send the multipart request
       upload_consumer = OAuth::Consumer.new(
         @consumer_key,
         @consumer_secret,
@@ -90,7 +77,7 @@ module ImgupCli
       upload_access.sign! req
 
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = (uri.scheme == 'https')
+      http.use_ssl = true
       resp = http.request(req)
 
       unless resp.is_a?(Net::HTTPSuccess)
@@ -104,31 +91,25 @@ module ImgupCli
       image_uri = image['ImageUri'] || image['Uri']
       raise "No ImageUri found in upload response: #{image.inspect}" unless image_uri
 
-      uri = URI.join(@api_base, "#{image_uri}!sizes")
+      uri = URI.join(API_BASE, "#{image_uri}!sizes")
       req = Net::HTTP::Get.new(uri.request_uri)
       req['Accept'] = 'application/json'
       @access.sign! req
 
       http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = (uri.scheme == 'https')
+      http.use_ssl = true
       resp = http.request(req)
-      unless resp.is_a?(Net::HTTPSuccess)
-        raise "Size-fetch failed: HTTP #{resp.code} #{resp.message}"
-      end
+      raise "Size-fetch failed: HTTP #{resp.code} #{resp.message}" unless resp.is_a?(Net::HTTPSuccess)
 
-      body  = JSON.parse(resp.body)
-      sizes = body.dig('Response', 'ImageSizes', 'Size')
+      data  = JSON.parse(resp.body)
+      sizes = data.dig('Response', 'ImageSizes', 'Size')
       if sizes.is_a?(Array) && sizes.any?
-        best = sizes.max_by { |s| s['Width'].to_i }
-        return best['Url']
+        sizes.max_by { |s| s['Width'].to_i }['Url']
+      else
+        h = data.dig('Response','ImageSizes')
+        %w[XLargeImageUrl LargestImageUrl OriginalImageUrl].each { |k| return h[k] if h[k] }
+        raise "No image size URL found: #{data.inspect}"
       end
-
-      sizes_hash = body.dig('Response', 'ImageSizes')
-      %w[XLargeImageUrl LargestImageUrl OriginalImageUrl].each do |key|
-        return sizes_hash[key] if sizes_hash[key]
-      end
-
-      raise "No image size URL found in size response: #{body.inspect}"
     end
 
     def cleanup_tmp(path)
