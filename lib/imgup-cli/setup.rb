@@ -13,39 +13,55 @@ module ImgupCli
     AUTHORIZE_URL      = "#{API_BASE}/services/oauth/1.0a/authorize"
     ACCESS_TOKEN_URL   = "#{API_BASE}/services/oauth/1.0a/getAccessToken"
     USER_ENDPOINT      = '/api/v2!authuser'
-    CHILDREN_FLAG      = '!children'
+    CHILDREN_SUFFIX    = '!children'
 
-    def self.run(consumer_key:, consumer_secret:)
+    # consumer_key and consumer_secret may be passed in,
+    # but if missing we’ll load from config/env or prompt the user.
+    def self.run(consumer_key: nil, consumer_secret: nil)
       cfg = ImgupCli::Config.load
 
-      # 1) Do PIN‐mode request token dance
-      consumer      = OAuth::Consumer.new(
-                        consumer_key,
-                        consumer_secret,
-                        request_token_url: REQUEST_TOKEN_URL,
-                        authorize_url:     AUTHORIZE_URL,
-                        access_token_url:  ACCESS_TOKEN_URL
-                      )
+      # --- Determine your SmugMug API credentials --------------------------------
+      consumer_key    ||= cfg['consumer_key']    || ENV['SMUGMUG_TOKEN']
+      consumer_secret ||= cfg['consumer_secret'] || ENV['SMUGMUG_SECRET']
+
+      if consumer_key.to_s.strip.empty? || consumer_secret.to_s.strip.empty?
+        puts "To continue, I need your SmugMug API Key & Secret."
+        print "API Key: "
+        consumer_key = STDIN.gets.strip
+        print "API Secret: "
+        consumer_secret = STDIN.gets.strip
+        puts
+      end
+
+      # --- 1) Obtain a PIN-mode request token -----------------------------------
+      consumer = OAuth::Consumer.new(
+        consumer_key,
+        consumer_secret,
+        request_token_url: REQUEST_TOKEN_URL,
+        authorize_url:     AUTHORIZE_URL,
+        access_token_url:  ACCESS_TOKEN_URL
+      )
       request_token = consumer.get_request_token(oauth_callback: 'oob')
 
-      # 2) Let user authorize in browser
+      # --- 2) Direct user to authorize in browser -------------------------------
       auth_url = "#{AUTHORIZE_URL}?oauth_token=#{request_token.token}&Access=Full&Permissions=Modify"
-      puts "\nPlease authorize this app here:\n\n  #{auth_url}\n\n"
+      puts "\nPlease authorize this app in your browser:\n\n  #{auth_url}\n\n"
       Launchy.open(auth_url)
 
-      # 3) Capture the redirect URL with the PIN
-      print "After authorizing, paste the full callback URL here: "
+      # --- 3) Prompt for the full callback URL and extract the PIN -------------
+      puts "After authorizing, SmugMug will attempt to redirect and fail."
+      print "Paste the full callback URL here: "
       redirect_url = STDIN.gets.strip
-
-      # 4) Extract PIN
-      verifier = CGI.parse(URI.parse(redirect_url).query)['oauth_verifier'].first rescue nil
-      abort "❌ Couldn't extract PIN from that URL." unless verifier
+      uri    = URI.parse(redirect_url)
+      params = CGI.parse(uri.query.to_s)
+      verifier = params['oauth_verifier']&.first
+      abort "❌ Couldn't find oauth_verifier in that URL." unless verifier
       puts "→ Got PIN: #{verifier}"
 
-      # 5) Exchange PIN for real access token
+      # --- 4) Exchange PIN for an access token ---------------------------------
       access_token = request_token.get_access_token(oauth_verifier: verifier)
 
-      # 6) Persist OAuth credentials
+      # --- 5) Persist OAuth credentials ----------------------------------------
       cfg.merge!(
         'consumer_key'        => consumer_key,
         'consumer_secret'     => consumer_secret,
@@ -53,43 +69,48 @@ module ImgupCli
         'access_token_secret' => access_token.secret
       )
 
-      # 7) Discover root node from user record
+      # --- 6) Build OAuth client for SmugMug API calls -------------------------
       api_consumer = OAuth::Consumer.new(consumer_key, consumer_secret, site: API_BASE)
-      api_access   = OAuth::AccessToken.new(api_consumer, access_token.token, access_token.secret)
+      api_access   = OAuth::AccessToken.new(api_consumer,
+                                            access_token.token,
+                                            access_token.secret)
 
-      user_raw  = api_access.get("#{USER_ENDPOINT}?_expand=Uris", 'Accept' => 'application/json').body
-      user_data = JSON.parse(user_raw)
+      # --- 7) Fetch your root node URI ----------------------------------------
+      puts "\nDiscovering your root node…"
+      raw_user  = api_access.get(USER_ENDPOINT, 'Accept' => 'application/json').body
+      user_data = JSON.parse(raw_user)
       root_node = user_data.dig('Response','User','Uris','Node','Uri')
-      abort "❌ Cannot find root node URI. Full payload:\n#{JSON.pretty_generate(user_data)}" unless root_node
+      abort "❌ Could not find root node URI. Payload:\n#{JSON.pretty_generate(user_data)}" unless root_node
 
-      # 8) Fetch children (only public albums/folders)
-      children_url  = "#{root_node}#{CHILDREN_FLAG}?_expand=Album"
+      # --- 8) Retrieve child nodes (folders & public albums) -------------------
       puts "\nFetching your public albums…"
-      raw_children  = api_access.get(children_url, 'Accept' => 'application/json').body
+      raw_children  = api_access.get("#{root_node}#{CHILDREN_SUFFIX}", 'Accept' => 'application/json').body
       children_data = JSON.parse(raw_children)
       nodes         = children_data.dig('Response','Node') || []
 
-      # 9) Filter for those that are albums
+      # --- 9) Filter for album-type nodes -------------------------------------
       albums = nodes.select { |n| n['Type'] == 'Album' }
-      abort "❌ No public albums found. Full response:\n#{JSON.pretty_generate(children_data)}" if albums.empty?
+      abort "❌ No public albums found. Payload:\n#{JSON.pretty_generate(children_data)}" if albums.empty?
 
-      # 10) List and choose
-      puts "\nSelect a public album to upload into:"
-      albums.each_with_index do |n, i|
-        title = n['Name'].to_s.strip.empty? ? 'Untitled' : n['Name']
-        uri   = n.dig('Uris','Album','Uri')
-        key   = uri.split('/').last
-        puts "#{i + 1}. #{title} (ID: #{key})"
+      # --- 10) Prompt user to select an album ---------------------------------
+      puts "\nSelect an album to upload into:"
+      albums.each_with_index do |n, idx|
+        title     = n['Name'].to_s.strip.empty? ? 'Untitled' : n['Name']
+        album_uri = n.dig('Uris','Album','Uri')
+        key       = album_uri.split('/').last
+        puts "#{idx + 1}. #{title} (ID: #{key})"
       end
-      print "\nEnter number [1-#{albums.size}]: "
+      print "\nEnter the number [1-#{albums.size}]: "
       choice = STDIN.gets.to_i
       abort "❌ Invalid selection." unless choice.between?(1, albums.size)
 
-      sel = albums[choice - 1]
-      cfg['album_id'] = sel.dig('Uris','Album','Uri').split('/').last
-      puts "→ Selected album: #{sel['Name']} (#{cfg['album_id']})"
+      selected  = albums[choice - 1]
+      album_uri = selected.dig('Uris','Album','Uri')
+      album_key = album_uri.split('/').last
+      cfg['album_id'] = album_key
+      puts "→ Selected album: #{selected['Name']} (#{album_key})"
 
-      # 11) Save config
+      # --- 11) Save configuration ---------------------------------------------
       ImgupCli::Config.save(cfg)
       puts "\n✅ Setup complete!  Config written to:\n    #{ImgupCli::Config::FILE}\n\n"
     rescue OAuth::Unauthorized => e
