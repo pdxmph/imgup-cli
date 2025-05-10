@@ -48,6 +48,17 @@ Example:
 
 By default, the snippet is printed to stdout. You can pipe it into `pbcopy` or similar to get it right on your clipboard.
 
+## Configuring default backend and format
+
+You can save a few arguments in the CLI or your scripts if you set the default backend and format with:
+
+`imgup --set-format` and `imgup --set-backend`
+
+Format options: `md`, `org`, `html`
+
+Backend options: `smugmug`, `flickr`
+
+
 ## org snippets
 
 The org snippet leverages a custom image link type:

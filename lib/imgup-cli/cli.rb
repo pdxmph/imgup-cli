@@ -3,65 +3,93 @@ require 'dotenv'
 Dotenv.load('.env', File.expand_path('~/.imgup.env'))
 require 'optparse'
 require_relative 'config'
-require_relative 'setup'         # SmugMug setup
+require_relative 'setup'
 require_relative 'uploader'
 
 module ImgupCli
   class CLI
     def self.start(args = ARGV)
-      # Allow: imgup setup [smugmug|flickr]
-      if args[0] == 'setup'
-        which = args[1] || 'smugmug'
-        if which == 'smugmug'
-          require_relative 'setup'
-          ImgupCli::Setup.run(
-            consumer_key:    ENV['SMUGMUG_TOKEN'],
-            consumer_secret: ENV['SMUGMUG_SECRET']
+      # 0) Load existing config
+      cfg = Config.load
+
+      # 1) Determine defaults (support old & new keys)
+      default_backend = cfg['default_backend'] || cfg['backend'] || 'smugmug'
+      default_format  = cfg['default_format']  || cfg['format']  || 'md'
+
+      options = {
+        backend: default_backend,
+        format:  default_format,
+        title:   nil,
+        caption: nil
+      }
+
+      parser = OptionParser.new do |opts|
+        opts.banner = 'Usage: imgup [setup] | [options] <image_path>'
+
+        opts.on('--set-backend BACKEND', 'Persist default backend (smugmug|flickr)') do |b|
+          cfg['default_backend'] = b
+          cfg['backend']         = b    # for backwards compatibility
+          Config.save(cfg)
+          puts "→ Default backend saved as '#{b}' in #{Config::FILE}"
+          exit
+        end
+
+        opts.on('--set-format FORMAT', %w[org md html], 'Persist default format') do |f|
+          cfg['default_format'] = f
+          cfg['format']         = f    # for backwards compatibility
+          Config.save(cfg)
+          puts "→ Default format saved as '#{f}' in #{Config::FILE}"
+          exit
+        end
+
+        opts.on('-b NAME','--backend NAME','Select backend (smugmug|flickr)') do |b|
+          options[:backend] = b
+        end
+
+        opts.on('-f F','--format F',%w[org md html],'Select output format') do |f|
+          options[:format] = f
+        end
+
+        opts.on('-t T','--title T','Image title')    { |t| options[:title]   = t }
+        opts.on('-c C','--caption C','Image caption'){ |c| options[:caption] = c }
+        opts.on('-h','--help','Show help')           { puts opts; exit }
+      end
+
+      # 2) Handle `setup` subcommand
+      if args.first == 'setup'
+        target = args[1] || 'smugmug'
+        case target
+        when 'smugmug'
+          Setup.run(
+            consumer_key:    cfg['consumer_key'],
+            consumer_secret: cfg['consumer_secret']
           )
-        elsif which == 'flickr'
+        when 'flickr'
           require_relative 'setup_flickr'
-          ImgupCli::SetupFlickr.run
+          SetupFlickr.run
         else
-          $stderr.puts "Unknown setup target: #{which.inspect}"
+          STDERR.puts "Unknown setup target: #{target.inspect}"
         end
         exit
       end
 
-      # Load saved creds + ENV
-      cfg = ImgupCli::Config.load
-      ENV['SMUGMUG_TOKEN']         ||= cfg['consumer_key']
-      ENV['SMUGMUG_SECRET']        ||= cfg['consumer_secret']
-      ENV['SMUGMUG_ACCESS_TOKEN']  ||= cfg['access_token']
-      ENV['SMUGMUG_ACCESS_TOKEN_SECRET'] ||= cfg['access_token_secret']
-      ENV['FLICKR_KEY']            ||= cfg['flickr_key']
-      ENV['FLICKR_SECRET']         ||= cfg['flickr_secret']
-      ENV['FLICKR_ACCESS_TOKEN']   ||= cfg['flickr_access_token']
-      ENV['FLICKR_ACCESS_TOKEN_SECRET'] ||= cfg['flickr_access_token_secret']
-      ENV['SMUGMUG_UPLOAD_ALBUM_ID']   ||= cfg['album_id']
-
-      options = { backend: 'smugmug', format: 'md' }
-      parser = OptionParser.new do |opts|
-        opts.banner = 'Usage: imgup [setup] | [options] <path>'
-        opts.on('-b NAME', '--backend=NAME', 'Backend (smugmug|flickr)') { |b| options[:backend] = b }
-        opts.on('-t TITLE','--title=TITLE','Image title')   { |v| options[:title]   = v }
-        opts.on('-c CAPTION','--caption=CAPTION','Caption') { |v| options[:caption] = v }
-        opts.on('-f F','--format=F',%w[org md html],'Format') { |v| options[:format]  = v }
-        opts.on('-h','--help','Help') { puts opts; exit }
-      end
-
+      # 3) Parse flags
       begin
         parser.parse!(args)
       rescue OptionParser::InvalidOption => e
-        $stderr.puts e.message
+        STDERR.puts e.message
         exit 1
       end
 
+      # 4) The remaining argument is the image path
       image_path = args.first
       unless image_path && File.file?(image_path)
-        $stderr.puts parser
+        STDERR.puts parser
         exit 1
       end
 
+
+      # 5) Perform the upload
       begin
         uploader = Uploader.build(
           options[:backend],
@@ -71,10 +99,15 @@ module ImgupCli
         )
         result = uploader.call
 
-        snippet_key = (%w[org html].include?(options[:format]) ? options[:format] : 'markdown').to_sym
-        puts result.fetch(snippet_key)
+        output = case options[:format]
+                 when 'org'  then result[:org]
+                 when 'html' then result[:html]
+                 else            result[:markdown]
+                 end
+
+        puts output
       rescue => e
-        $stderr.puts e.message
+        STDERR.puts "Error: #{e.message}"
         exit 1
       end
     end
