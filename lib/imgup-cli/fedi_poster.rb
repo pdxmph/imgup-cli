@@ -4,6 +4,7 @@ require 'uri'
 require 'json'
 require 'open-uri'
 require 'tempfile'
+require 'net/http/post/multipart'
 require_relative 'config'
 
 module ImgupCli
@@ -77,26 +78,6 @@ module ImgupCli
       puts "❌ Fedi post error: #{e.message}" if @verbose
       nil
     end
-  end
-end
-      
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true if uri.scheme == 'https'
-      response = http.request(req)
-      
-      if response.code == '200'
-        data = JSON.parse(response.body)
-        post_url = data['url']
-        puts "✅ Posted to fediverse: #{post_url}" if @verbose
-        post_url
-      else
-        puts "❌ Fedi post failed: #{response.code} #{response.message}" if @verbose
-        nil
-      end
-    rescue => e
-      puts "❌ Fedi post error: #{e.message}" if @verbose
-      nil
-    end
     
     private
     
@@ -126,9 +107,6 @@ end
     
     def upload_to_gotosocial(file_path, description)
       uri = URI("#{@instance_url}/api/v1/media")
-      
-      # Use multipart-post for file upload
-      require 'net/http/post/multipart'
       
       File.open(file_path, 'rb') do |file|
         req = Net::HTTP::Post::Multipart.new(uri.path,

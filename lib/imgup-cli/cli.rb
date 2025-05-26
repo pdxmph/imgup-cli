@@ -113,8 +113,8 @@ module ImgupCli
       parser.parse!(args)
       
       # Handle different modes
-      if options[:post_text] || options[:backend] == 'gotosocial'
-        # Multi-image GoToSocial mode
+      if options[:backend] == 'gotosocial' && !options[:fedi]
+        # Direct GoToSocial mode (no other backend)
         if options[:images].empty?
           STDERR.puts "Error: GoToSocial posts require at least one --image"
           exit 1
@@ -134,7 +134,7 @@ module ImgupCli
         # Multi-image upload to backend + fedi
         results = []
         options[:images].each_with_index do |img, idx|
-          puts "Uploading #{img[:path]}..." if options[:verbose]
+          puts "Uploading #{File.basename(img[:path])} to #{options[:backend]}..." if options[:verbose]
           uploader = Uploader.build(
             options[:backend],
             img[:path],
