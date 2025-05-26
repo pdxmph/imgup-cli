@@ -158,55 +158,63 @@ module ImgupCli
       FileUtils.mkdir_p(temp_dir)
       temp_path = File.join(temp_dir, "resized_#{File.basename(path)}")
       
-      # Resize image
-      image = MiniMagick::Image.open(path)
-      
-      # Get original dimensions
-      orig_width = image.width
-      orig_height = image.height
-      puts "    Original: #{orig_width}x#{orig_height}"
-      
-      # Only resize if image is larger than target
-      needs_resize = false
-      
-      if width && height
-        # Fit within box while maintaining aspect ratio
-        if orig_width > width || orig_height > height
-          image.resize "#{width}x#{height}"
-          puts "    Resizing to fit within #{width}x#{height}"
-          needs_resize = true
+      # Open and process image
+      MiniMagick::Tool::Convert.new do |convert|
+        convert << path
+        convert.auto_orient
+        convert.strip
+        
+        # Get original dimensions for logging
+        image = MiniMagick::Image.open(path)
+        orig_width = image.width
+        orig_height = image.height
+        puts "    Original: #{orig_width}x#{orig_height}"
+        
+        # Apply resize based on options
+        if width && height
+          # Fit within box while maintaining aspect ratio
+          if orig_width > width || orig_height > height
+            convert.resize "#{width}x#{height}>"
+            puts "    Resizing to fit within #{width}x#{height}"
+          else
+            puts "    No resize needed"
+            return path
+          end
+        elsif width && !height
+          # Resize width, maintain aspect ratio
+          if orig_width > width
+            convert.resize "#{width}x>"
+            puts "    Resizing width to max #{width}px"
+          else
+            puts "    No resize needed"
+            return path
+          end
+        elsif height && !width
+          # Resize height, maintain aspect ratio  
+          if orig_height > height
+            convert.resize "x#{height}>"
+            puts "    Resizing height to max #{height}px"
+          else
+            puts "    No resize needed"
+            return path
+          end
         end
-      elsif width && !height
-        # Resize width, maintain aspect ratio
-        if orig_width > width
-          image.resize "#{width}"
-          puts "    Resizing width to #{width}px"
-          needs_resize = true
+        
+        # Set quality for JPEG
+        if mime_type(path) == 'image/jpeg'
+          convert.quality "85"
         end
-      elsif height && !width
-        # Resize height, maintain aspect ratio  
-        if orig_height > height
-          image.resize "x#{height}"
-          puts "    Resizing height to #{height}px"
-          needs_resize = true
-        end
+        
+        convert << temp_path
       end
       
-      if needs_resize
-        # Optimize for web (strip metadata, optimize compression)
-        image.strip
-        image.quality 85 if mime_type(path) == 'image/jpeg'
-        
-        # Save resized image
-        image.write temp_path
-        
-        # Debug output
+      # Verify the output
+      if File.exist?(temp_path) && File.size(temp_path) > 1000
         resized_size = File.size(temp_path)
         puts "    Resized file: #{resized_size} bytes"
-        
         temp_path
       else
-        puts "    No resize needed"
+        puts "    ERROR: Resize failed, using original"
         path
       end
     end
