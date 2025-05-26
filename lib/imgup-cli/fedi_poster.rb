@@ -10,18 +10,19 @@ require_relative 'config'
 module ImgupCli
   # Posts to GoToSocial using URLs from other services
   class FediPoster
-    def initialize(upload_results, post_text: nil, visibility: 'public', verbose: false)
+    def initialize(upload_results, post_text: nil, visibility: 'public', verbose: false, config_prefix: 'gotosocial')
       @upload_results = Array(upload_results) # Support single or multiple
       @post_text = post_text
       @visibility = visibility
       @verbose = verbose
+      @config_prefix = config_prefix
       
       cfg = Config.load
-      @instance_url = cfg['gotosocial_instance']
-      @access_token = cfg['gotosocial_token']
+      @instance_url = cfg["#{config_prefix}_instance"]
+      @access_token = cfg["#{config_prefix}_token"]
       
       unless @instance_url && @access_token
-        puts "⚠️  GoToSocial not configured. Run 'imgup setup gotosocial' first." if @verbose
+        puts "⚠️  #{config_prefix.capitalize} not configured. Run 'imgup setup #{config_prefix}' first." if @verbose
         @configured = false
       else
         @configured = true

@@ -59,10 +59,11 @@ Should be ready to go at that point. See "Usage" below.
 
 - `--title, -t` - To set the image title, for purposes of display on flickr or SmugMug
 - `--caption, -c` - To set the caption, which will act as the alt text/description for the snippet you get back
-- `--backend, -b` - To set the backend, i.e. `smugmug`, `flickr`, `gotosocial`, or `mastodon`
+- `--backend, -b` - To set the backend, i.e. `smugmug` or `flickr`
 - `--format, -f` - To set the format of the snippet (org, md, or html)
 - `--verbose, -v` - Enable verbose output for debugging
 - `--fedi` - Also post to GoToSocial after uploading to primary backend
+- `--mastodon` - Also post to Mastodon after uploading to primary backend
 
 For GoToSocial/Mastodon posts:
 - `--post` - The main text of your post
@@ -99,6 +100,12 @@ imgup --backend smugmug --fedi \
   --image mountain.jpg --desc "View from the summit" \
   --image trail.jpg --desc "Trail through the forest" \
   --tags hiking,nature,photography
+
+# Or post to Mastodon specifically
+imgup --backend flickr --mastodon \
+  --post "New photos up!" \
+  --image photo1.jpg --desc "First shot" \
+  --tags photography
 ```
 
 By default, the snippet is printed to stdout. You can pipe it into `pbcopy` or similar to get it right on your clipboard.
@@ -111,7 +118,9 @@ You can save a few arguments in the CLI or your scripts if you set the default b
 
 Format options: `md`, `org`, `html`
 
-Backend options: `smugmug`, `flickr`, `gotosocial`, `mastodon`
+Backend options: `smugmug`, `flickr`
+
+Social sharing options: `--fedi` (GoToSocial), `--mastodon` (Mastodon)
 
 
 ## org snippets

@@ -26,7 +26,7 @@ module ImgupCli
           title: options[:title], 
           caption: options[:caption], 
           tags: options[:tags])
-      when 'gotosocial', 'mastodon'
+      when 'gotosocial'
         require_relative 'gotosocial_uploader'
         GotosocialUploader.new(path, **options)
       else

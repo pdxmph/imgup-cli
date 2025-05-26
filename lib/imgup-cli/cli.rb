@@ -17,13 +17,14 @@ module ImgupCli
         title:   nil,
         caption: nil,
         tags:    [],
-        # New options for GoToSocial
+        # New options for social posting
         post_text: nil,
         images: [],
         visibility: 'public',
         resize: nil,
         verbose: false,
-        fedi: false
+        fedi: false,
+        mastodon: false
       }
 
       parser = OptionParser.new do |opts|
@@ -83,8 +84,12 @@ module ImgupCli
           options[:verbose] = true
         end
         
-        opts.on('--fedi', 'Also post to GoToSocial after upload') do
+        opts.on('--fedi', 'Also post to GoToSocial/Fediverse after upload') do
           options[:fedi] = true
+        end
+        
+        opts.on('--mastodon', 'Also post to Mastodon after upload') do
+          options[:mastodon] = true
         end
 
         opts.on('-h','--help','Show help') { puts opts; exit }
@@ -117,25 +122,8 @@ module ImgupCli
       parser.parse!(args)
       
       # Handle different modes
-      if (options[:backend] == 'gotosocial' || options[:backend] == 'mastodon') && !options[:fedi]
-        # Direct Mastodon/GoToSocial mode (no other backend)
-        if options[:images].empty?
-          STDERR.puts "Error: Fediverse posts require at least one --image"
-          exit 1
-        end
-        
-        uploader = Uploader.build(
-          'gotosocial',
-          nil, # no single path
-          images: options[:images],
-          post_text: options[:post_text],
-          tags: options[:tags],
-          visibility: options[:visibility],
-          resize: options[:resize],
-          verbose: options[:verbose]
-        )
-      elsif options[:images].any? && options[:fedi]
-        # Multi-image upload to backend + fedi
+      if options[:images].any? && (options[:fedi] || options[:mastodon])
+        # Multi-image upload to backend + social sharing
         results = []
         options[:images].each_with_index do |img, idx|
           puts "Uploading #{File.basename(img[:path])} to #{options[:backend]}..." if options[:verbose]
@@ -149,22 +137,29 @@ module ImgupCli
           results << uploader.call
         end
         
-        # Post all to fedi
-        require_relative 'fedi_poster'
-        poster = FediPoster.new(
-          results,
-          post_text: options[:post_text],
-          visibility: options[:visibility],
-          verbose: options[:verbose]
-        )
-        fedi_url = poster.post
-        
-        # Output results
-        results.each do |r|
-          puts r[options[:format].to_sym]
+        # Post to social platforms
+        if options[:fedi] || options[:mastodon]
+          require_relative 'fedi_poster'
+          
+          # Use appropriate config based on flag
+          config_prefix = options[:mastodon] ? 'mastodon' : 'gotosocial'
+          
+          poster = FediPoster.new(
+            results,
+            post_text: options[:post_text],
+            visibility: options[:visibility],
+            verbose: options[:verbose],
+            config_prefix: config_prefix
+          )
+          fedi_url = poster.post
+          
+          # Output results
+          results.each do |r|
+            puts r[options[:format].to_sym]
+          end
+          puts "\nPosted to #{options[:mastodon] ? 'Mastodon' : 'fediverse'}: #{fedi_url}" if fedi_url
+          exit
         end
-        puts "\nPosted to fediverse: #{fedi_url}" if fedi_url
-        exit
       else
         # Traditional single-image mode
         image_path = args.first
@@ -184,18 +179,23 @@ module ImgupCli
 
       result = uploader.call
 
-      # Handle fedi posting if requested
-      if options[:fedi] && options[:backend] != 'gotosocial'
+      # Handle fedi/mastodon posting if requested
+      if (options[:fedi] || options[:mastodon]) && options[:backend] != 'gotosocial'
         require_relative 'fedi_poster'
+        
+        # Use appropriate config based on flag
+        config_prefix = options[:mastodon] ? 'mastodon' : 'gotosocial'
+        
         poster = FediPoster.new(
           result, 
           post_text: options[:post_text],
           visibility: options[:visibility],
-          verbose: options[:verbose]
+          verbose: options[:verbose],
+          config_prefix: config_prefix
         )
         fedi_url = poster.post
         if fedi_url && options[:verbose]
-          puts "\nPosted to fediverse: #{fedi_url}"
+          puts "\nPosted to #{options[:mastodon] ? 'Mastodon' : 'fediverse'}: #{fedi_url}"
         end
       end
 
