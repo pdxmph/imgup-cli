@@ -54,15 +54,20 @@ module ImgupCli
       
       # Resize image if requested
       upload_path = path
+      was_resized = false
       if @resize
-        upload_path = resize_image(path)
+        resized_path = resize_image(path)
+        if resized_path != path
+          upload_path = resized_path
+          was_resized = true
+        end
       end
       
       # Log file info for debugging
       file_size = File.size(upload_path)
       file_type = mime_type(upload_path)
       puts "    File: #{File.basename(upload_path)} (#{file_size} bytes, #{file_type})"
-      puts "    Resized from #{File.size(path)} bytes" if upload_path != path
+      puts "    Resized from #{File.size(path)} bytes" if was_resized
       
       File.open(upload_path, 'rb') do |file|
         req = Net::HTTP::Post::Multipart.new(uri.path,
@@ -84,7 +89,7 @@ module ImgupCli
         puts "    URL: #{data['url']}" if data['url']
         
         # Clean up temp file if we resized
-        FileUtils.rm_f(upload_path) if upload_path != path
+        FileUtils.rm_f(upload_path) if was_resized
         
         data['id']
       end
@@ -144,9 +149,9 @@ module ImgupCli
     
     def resize_image(path)
       # Parse resize dimensions (e.g., "1920x1920", "1200x", "x800")
-      dimensions = @resize.split('x').map { |d| d.empty? ? nil : d.to_i }
-      width = dimensions[0]
-      height = dimensions[1]
+      dimensions = @resize.split('x')
+      width = dimensions[0].to_i unless dimensions[0].nil? || dimensions[0].empty?
+      height = dimensions[1].to_i unless dimensions[1].nil? || dimensions[1].empty?
       
       # Create temp file path
       temp_dir = File.join(Dir.tmpdir, 'imgup-resize')
@@ -162,34 +167,48 @@ module ImgupCli
       puts "    Original: #{orig_width}x#{orig_height}"
       
       # Only resize if image is larger than target
+      needs_resize = false
+      
       if width && height
         # Fit within box while maintaining aspect ratio
         if orig_width > width || orig_height > height
-          image.resize "#{width}x#{height}>"
+          image.resize "#{width}x#{height}"
           puts "    Resizing to fit within #{width}x#{height}"
+          needs_resize = true
         end
-      elsif width
+      elsif width && !height
         # Resize width, maintain aspect ratio
         if orig_width > width
-          image.resize "#{width}x"
+          image.resize "#{width}"
           puts "    Resizing width to #{width}px"
+          needs_resize = true
         end
-      elsif height
+      elsif height && !width
         # Resize height, maintain aspect ratio  
         if orig_height > height
           image.resize "x#{height}"
           puts "    Resizing height to #{height}px"
+          needs_resize = true
         end
       end
       
-      # Optimize for web (strip metadata, optimize compression)
-      image.strip
-      image.quality 85 if mime_type(path) == 'image/jpeg'
-      
-      # Save resized image
-      image.write temp_path
-      
-      temp_path
+      if needs_resize
+        # Optimize for web (strip metadata, optimize compression)
+        image.strip
+        image.quality 85 if mime_type(path) == 'image/jpeg'
+        
+        # Save resized image
+        image.write temp_path
+        
+        # Debug output
+        resized_size = File.size(temp_path)
+        puts "    Resized file: #{resized_size} bytes"
+        
+        temp_path
+      else
+        puts "    No resize needed"
+        path
+      end
     end
     
     def build_result(post_data)
