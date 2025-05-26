@@ -33,6 +33,16 @@ Should be ready to go at that point. See "Usage" below.
 
 Should be ready to go at that point. See "Usage" below.
 
+## Mastodon Setup (Simplified)
+
+1. Go to your Mastodon instance's `/settings/applications`
+2. Create a new application
+3. Copy the access token
+4. Run `imgup setup mastodon`
+5. Paste your instance URL and token
+
+Should be ready to go at that point. See "Usage" below.
+
 ## GoToSocial / Fediverse Setup
 
 1. Create an OAuth application on your GoToSocial instance at `/settings/applications/new`
@@ -49,12 +59,12 @@ Should be ready to go at that point. See "Usage" below.
 
 - `--title, -t` - To set the image title, for purposes of display on flickr or SmugMug
 - `--caption, -c` - To set the caption, which will act as the alt text/description for the snippet you get back
-- `--backend, -b` - To set the backend, i.e. `smugmug`, `flickr`, or `gotosocial`
+- `--backend, -b` - To set the backend, i.e. `smugmug`, `flickr`, `gotosocial`, or `mastodon`
 - `--format, -f` - To set the format of the snippet (org, md, or html)
 - `--verbose, -v` - Enable verbose output for debugging
 - `--fedi` - Also post to GoToSocial after uploading to primary backend
 
-For GoToSocial posts:
+For GoToSocial/Mastodon posts:
 - `--post` - The main text of your post
 - `--image` - Path to an image (can be used multiple times)
 - `--desc` - Description/alt text for the most recently added image
@@ -101,7 +111,7 @@ You can save a few arguments in the CLI or your scripts if you set the default b
 
 Format options: `md`, `org`, `html`
 
-Backend options: `smugmug`, `flickr`, `gotosocial`
+Backend options: `smugmug`, `flickr`, `gotosocial`, `mastodon`
 
 
 ## org snippets

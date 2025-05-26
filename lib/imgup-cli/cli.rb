@@ -104,8 +104,12 @@ module ImgupCli
         when 'gotosocial'
           require_relative 'setup_gotosocial'
           SetupGotosocial.run
+        when 'mastodon'
+          require_relative 'setup_mastodon'
+          SetupMastodon.run
         else
           STDERR.puts "Unknown setup target: #{target}"
+          STDERR.puts "Valid options: smugmug, flickr, gotosocial, mastodon"
         end
         exit
       end
@@ -113,10 +117,10 @@ module ImgupCli
       parser.parse!(args)
       
       # Handle different modes
-      if options[:backend] == 'gotosocial' && !options[:fedi]
-        # Direct GoToSocial mode (no other backend)
+      if (options[:backend] == 'gotosocial' || options[:backend] == 'mastodon') && !options[:fedi]
+        # Direct Mastodon/GoToSocial mode (no other backend)
         if options[:images].empty?
-          STDERR.puts "Error: GoToSocial posts require at least one --image"
+          STDERR.puts "Error: Fediverse posts require at least one --image"
           exit 1
         end
         
