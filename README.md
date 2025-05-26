@@ -58,6 +58,7 @@ For GoToSocial posts:
 - `--desc` - Description/alt text for the most recently added image
 - `--visibility` - Post visibility: public, unlisted, private, or direct (default: public)
 - `--tags` - Comma-separated tags (will be converted to hashtags)
+- `--resize` - Resize images before upload (e.g., 1920x1920, 1200x, x800)
 
 Example:
 
@@ -72,6 +73,13 @@ imgup --post "Beautiful day at the Oregon coast!" \
   --image lighthouse.jpg --desc "Heceta Head lighthouse" \
   --tags photography,oregon,coast \
   --visibility public
+
+# With automatic image resizing for better federation
+imgup --post "Concert photos!" \
+  --resize 1920x1920 \
+  --image band1.jpg --desc "Opening act" \
+  --image band2.jpg --desc "Main performance" \
+  --tags concert,music
 ```
 
 By default, the snippet is printed to stdout. You can pipe it into `pbcopy` or similar to get it right on your clipboard.

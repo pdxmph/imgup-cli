@@ -20,7 +20,8 @@ module ImgupCli
         # New options for GoToSocial
         post_text: nil,
         images: [],
-        visibility: 'public'
+        visibility: 'public',
+        resize: nil
       }
 
       parser = OptionParser.new do |opts|
@@ -71,6 +72,10 @@ module ImgupCli
                 'Post visibility (default: public)') do |v|
           options[:visibility] = v
         end
+        
+        opts.on('--resize DIMENSIONS', 'Resize images (e.g., 1920x1920, 1200x)') do |r|
+          options[:resize] = r
+        end
 
         opts.on('-h','--help','Show help') { puts opts; exit }
       end
@@ -111,7 +116,8 @@ module ImgupCli
           images: options[:images],
           post_text: options[:post_text],
           tags: options[:tags],
-          visibility: options[:visibility]
+          visibility: options[:visibility],
+          resize: options[:resize]
         )
       else
         # Traditional single-image mode

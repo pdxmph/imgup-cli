@@ -20,6 +20,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency "multipart-post", "~> 2.1"
   spec.add_dependency "launchy",   "~> 3.0"
   spec.add_dependency "webrick",   "~> 1.7"
+  spec.add_dependency "mini_magick", "~> 4.12"
 
   spec.add_development_dependency "rspec",   "~> 3.10"
   spec.add_development_dependency "webmock", "~> 3.15"

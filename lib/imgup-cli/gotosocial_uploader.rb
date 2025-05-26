@@ -3,17 +3,20 @@ require 'net/http'
 require 'uri'
 require 'json'
 require 'net/http/post/multipart'
+require 'mini_magick'
+require 'fileutils'
 require_relative 'config'
 
 module ImgupCli
   class GotosocialUploader
     MAX_IMAGES = 4  # Mastodon API limit
     
-    def initialize(path = nil, images: [], post_text: nil, tags: [], visibility: 'public', **_opts)
+    def initialize(path = nil, images: [], post_text: nil, tags: [], visibility: 'public', resize: nil, **_opts)
       @images = images
       @post_text = post_text || ''
       @tags = Array(tags).map { |t| "##{t.gsub(/[^a-zA-Z0-9]/, '')}" }
       @visibility = visibility
+      @resize = resize
       
       cfg = Config.load
       @instance_url = cfg['gotosocial_instance'] || abort("❌ No GoToSocial instance configured")
@@ -49,14 +52,21 @@ module ImgupCli
     def upload_media(path, description = nil)
       uri = URI("#{@instance_url}/api/v1/media")
       
-      # Log file info for debugging
-      file_size = File.size(path)
-      file_type = mime_type(path)
-      puts "    File: #{File.basename(path)} (#{file_size} bytes, #{file_type})"
+      # Resize image if requested
+      upload_path = path
+      if @resize
+        upload_path = resize_image(path)
+      end
       
-      File.open(path, 'rb') do |file|
+      # Log file info for debugging
+      file_size = File.size(upload_path)
+      file_type = mime_type(upload_path)
+      puts "    File: #{File.basename(upload_path)} (#{file_size} bytes, #{file_type})"
+      puts "    Resized from #{File.size(path)} bytes" if upload_path != path
+      
+      File.open(upload_path, 'rb') do |file|
         req = Net::HTTP::Post::Multipart.new(uri.path,
-          'file' => UploadIO.new(file, file_type, File.basename(path)),
+          'file' => UploadIO.new(file, file_type, File.basename(upload_path)),
           'description' => description || ''
         )
         req['Authorization'] = "Bearer #{@access_token}"
@@ -72,6 +82,9 @@ module ImgupCli
         puts "    Media ID: #{data['id']}"
         puts "    Preview URL: #{data['preview_url']}" if data['preview_url']
         puts "    URL: #{data['url']}" if data['url']
+        
+        # Clean up temp file if we resized
+        FileUtils.rm_f(upload_path) if upload_path != path
         
         data['id']
       end
@@ -127,6 +140,56 @@ module ImgupCli
       when '.webp' then 'image/webp'
       else 'application/octet-stream'
       end
+    end
+    
+    def resize_image(path)
+      # Parse resize dimensions (e.g., "1920x1920", "1200x", "x800")
+      dimensions = @resize.split('x').map { |d| d.empty? ? nil : d.to_i }
+      width = dimensions[0]
+      height = dimensions[1]
+      
+      # Create temp file path
+      temp_dir = File.join(Dir.tmpdir, 'imgup-resize')
+      FileUtils.mkdir_p(temp_dir)
+      temp_path = File.join(temp_dir, "resized_#{File.basename(path)}")
+      
+      # Resize image
+      image = MiniMagick::Image.open(path)
+      
+      # Get original dimensions
+      orig_width = image.width
+      orig_height = image.height
+      puts "    Original: #{orig_width}x#{orig_height}"
+      
+      # Only resize if image is larger than target
+      if width && height
+        # Fit within box while maintaining aspect ratio
+        if orig_width > width || orig_height > height
+          image.resize "#{width}x#{height}>"
+          puts "    Resizing to fit within #{width}x#{height}"
+        end
+      elsif width
+        # Resize width, maintain aspect ratio
+        if orig_width > width
+          image.resize "#{width}x"
+          puts "    Resizing width to #{width}px"
+        end
+      elsif height
+        # Resize height, maintain aspect ratio  
+        if orig_height > height
+          image.resize "x#{height}"
+          puts "    Resizing height to #{height}px"
+        end
+      end
+      
+      # Optimize for web (strip metadata, optimize compression)
+      image.strip
+      image.quality 85 if mime_type(path) == 'image/jpeg'
+      
+      # Save resized image
+      image.write temp_path
+      
+      temp_path
     end
     
     def build_result(post_data)
