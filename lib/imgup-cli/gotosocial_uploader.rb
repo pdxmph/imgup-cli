@@ -150,8 +150,23 @@ module ImgupCli
     def resize_image(path)
       # Parse resize dimensions (e.g., "1920x1920", "1200x", "x800")
       dimensions = @resize.split('x')
-      width = dimensions[0].to_i unless dimensions[0].nil? || dimensions[0].empty?
-      height = dimensions[1].to_i unless dimensions[1].nil? || dimensions[1].empty?
+      
+      # Handle width
+      if dimensions[0] && !dimensions[0].empty?
+        width = dimensions[0].to_i
+      else
+        width = nil
+      end
+      
+      # Handle height - check if array has second element
+      if dimensions.length > 1 && dimensions[1] && !dimensions[1].empty?
+        height = dimensions[1].to_i
+      else
+        height = nil
+      end
+      
+      # Debug output
+      puts "    Resize request: '#{@resize}' -> width: #{width.inspect}, height: #{height.inspect}"
       
       # Create temp file path
       temp_dir = File.join(Dir.tmpdir, 'imgup-resize')
@@ -198,6 +213,9 @@ module ImgupCli
             puts "    No resize needed"
             return path
           end
+        else
+          puts "    Invalid resize dimensions"
+          return path
         end
         
         # Set quality for JPEG
