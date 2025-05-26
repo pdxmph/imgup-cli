@@ -32,6 +32,10 @@ module ImgupCli
         upload_media(img[:path], img[:description])
       end
       
+      # Give GoToSocial a moment to process the images
+      puts "⏳ Waiting for image processing..."
+      sleep 2
+      
       # Create the post
       puts "📝 Creating post..."
       post_data = create_post(media_ids)
@@ -45,9 +49,14 @@ module ImgupCli
     def upload_media(path, description = nil)
       uri = URI("#{@instance_url}/api/v1/media")
       
+      # Log file info for debugging
+      file_size = File.size(path)
+      file_type = mime_type(path)
+      puts "    File: #{File.basename(path)} (#{file_size} bytes, #{file_type})"
+      
       File.open(path, 'rb') do |file|
         req = Net::HTTP::Post::Multipart.new(uri.path,
-          'file' => UploadIO.new(file, mime_type(path), File.basename(path)),
+          'file' => UploadIO.new(file, file_type, File.basename(path)),
           'description' => description || ''
         )
         req['Authorization'] = "Bearer #{@access_token}"
@@ -58,6 +67,11 @@ module ImgupCli
         if response.code != '200'
           raise "Media upload failed: #{data['error'] || response.message}"
         end
+        
+        # Log the returned media info
+        puts "    Media ID: #{data['id']}"
+        puts "    Preview URL: #{data['preview_url']}" if data['preview_url']
+        puts "    URL: #{data['url']}" if data['url']
         
         data['id']
       end
@@ -85,6 +99,15 @@ module ImgupCli
       
       if response.code != '200'
         raise "Post creation failed: #{data['error'] || response.message}"
+      end
+      
+      # Log media attachment info
+      if data['media_attachments']
+        puts "\n📎 Media attachments in post:"
+        data['media_attachments'].each do |att|
+          puts "  - Type: #{att['type']}, URL: #{att['url']}"
+          puts "    Preview: #{att['preview_url']}" if att['preview_url']
+        end
       end
       
       data
