@@ -16,15 +16,11 @@ module ImgupCli
         format:  cfg['default_format']  || 'md',
         title:   nil,
         caption: nil,
-        tags:    [],
-        # New options for GoToSocial
-        post_text: nil,
-        images: [],
-        visibility: 'public'
+        tags:    []
       }
 
       parser = OptionParser.new do |opts|
-        opts.banner = 'Usage: imgup [setup] | [options] <image_path> | [--post options]'
+        opts.banner = 'Usage: imgup [setup] | [options] <image_path>'
 
         opts.on('--set-backend BACKEND', 'Persist default backend') do |b|
           cfg['default_backend'] = b
@@ -49,29 +45,6 @@ module ImgupCli
           options[:tags] = t.split(/,\s*/)
         end
 
-        # New GoToSocial options
-        opts.on('--post TEXT', 'Main post text (for gotosocial)') do |p| 
-          options[:post_text] = p
-          options[:backend] = 'gotosocial' # Auto-switch to gotosocial
-        end
-        
-        opts.on('--image PATH', 'Add an image (can be used multiple times)') do |path|
-          options[:images] << { path: path, description: nil }
-        end
-        
-        opts.on('--desc TEXT', 'Description for the last added image') do |desc|
-          if options[:images].any?
-            options[:images].last[:description] = desc
-          else
-            STDERR.puts "Warning: --desc used without preceding --image"
-          end
-        end
-        
-        opts.on('--visibility VIS', %w[public unlisted private direct], 
-                'Post visibility (default: public)') do |v|
-          options[:visibility] = v
-        end
-
         opts.on('-h','--help','Show help') { puts opts; exit }
       end
 
@@ -86,9 +59,6 @@ module ImgupCli
         when 'flickr'
           require_relative 'setup_flickr'
           SetupFlickr.run
-        when 'gotosocial'
-          require_relative 'setup_gotosocial'
-          SetupGotosocial.run
         else
           STDERR.puts "Unknown setup target: #{target}"
         end
@@ -96,40 +66,19 @@ module ImgupCli
       end
 
       parser.parse!(args)
-      
-      # Handle different modes
-      if options[:post_text] || options[:backend] == 'gotosocial'
-        # Multi-image GoToSocial mode
-        if options[:images].empty?
-          STDERR.puts "Error: GoToSocial posts require at least one --image"
-          exit 1
-        end
-        
-        uploader = Uploader.build(
-          'gotosocial',
-          nil, # no single path
-          images: options[:images],
-          post_text: options[:post_text],
-          tags: options[:tags],
-          visibility: options[:visibility]
-        )
-      else
-        # Traditional single-image mode
-        image_path = args.first
-        unless image_path && File.file?(image_path)
-          STDERR.puts parser
-          exit 1
-        end
-
-        uploader = Uploader.build(
-          options[:backend],
-          image_path,
-          title:   options[:title],
-          caption: options[:caption],
-          tags:    options[:tags]
-        )
+      image_path = args.first
+      unless image_path && File.file?(image_path)
+        STDERR.puts parser
+        exit 1
       end
 
+      uploader = Uploader.build(
+        options[:backend],
+        image_path,
+        title:   options[:title],
+        caption: options[:caption],
+        tags:    options[:tags]
+      )
       result = uploader.call
 
       output = case options[:format]

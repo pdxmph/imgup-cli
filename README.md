@@ -33,18 +33,46 @@ Should be ready to go at that point. See "Usage" below.
 
 Should be ready to go at that point. See "Usage" below.
 
+## GoToSocial / Fediverse Setup
+
+1. Create an OAuth application on your GoToSocial instance at `/settings/applications/new`
+2. Install the gem
+3. Run `imgup setup gotosocial`
+4. Provide your instance URL, Client ID, and Client Secret
+5. Authenticate in your browser
+
+Should be ready to go at that point. See "Usage" below.
+
 ## Usage 
 
 `imgup` takes a few arguments:
 
 - `--title, -t` - To set the image title, for purposes of display on flickr or SmugMug
 - `--caption, -c` - To set the caption, which will act as the alt text/description for the snippet you get back
-- `--backend, -b` - To set the backend, i.e. `smugmug` or `flickr`
+- `--backend, -b` - To set the backend, i.e. `smugmug`, `flickr`, or `gotosocial`
 - `--format, -f` - To set the format of the snippet (org, md, or html)
+
+For GoToSocial posts:
+- `--post` - The main text of your post
+- `--image` - Path to an image (can be used multiple times)
+- `--desc` - Description/alt text for the most recently added image
+- `--visibility` - Post visibility: public, unlisted, private, or direct (default: public)
+- `--tags` - Comma-separated tags (will be converted to hashtags)
 
 Example:
 
 `imgup -t "An Old House" -c "A spooky old house sits alone on a street at sunset." -f md your_image.jpg`
+
+GoToSocial example:
+
+```bash
+imgup --post "Beautiful day at the Oregon coast!" \
+  --image sunset.jpg --desc "Sunset at Cannon Beach" \
+  --image tidepools.jpg --desc "Found some amazing creatures" \
+  --image lighthouse.jpg --desc "Heceta Head lighthouse" \
+  --tags photography,oregon,coast \
+  --visibility public
+```
 
 By default, the snippet is printed to stdout. You can pipe it into `pbcopy` or similar to get it right on your clipboard.
 
@@ -56,7 +84,7 @@ You can save a few arguments in the CLI or your scripts if you set the default b
 
 Format options: `md`, `org`, `html`
 
-Backend options: `smugmug`, `flickr`
+Backend options: `smugmug`, `flickr`, `gotosocial`
 
 
 ## org snippets

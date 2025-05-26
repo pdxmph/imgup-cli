@@ -14,12 +14,21 @@ module ImgupCli
     # @param caption [String, nil]
     # @param tags    [Array<String>] list of tag strings
     # @return [SmugMugUploader,FlickrUploader]
-    def self.build(backend, path, title:, caption:, tags: [])
+    def self.build(backend, path, **options)
       case backend.to_s.downcase
       when 'smugmug'
-        SmugMugUploader.new(path, title: title, caption: caption, tags: tags)
+        SmugMugUploader.new(path, 
+          title: options[:title], 
+          caption: options[:caption], 
+          tags: options[:tags])
       when 'flickr'
-        FlickrUploader.new(path, title: title, caption: caption, tags: tags)
+        FlickrUploader.new(path, 
+          title: options[:title], 
+          caption: options[:caption], 
+          tags: options[:tags])
+      when 'gotosocial'
+        require_relative 'gotosocial_uploader'
+        GotosocialUploader.new(path, **options)
       else
         raise ArgumentError, "Unknown backend: #{backend.inspect}"
       end
