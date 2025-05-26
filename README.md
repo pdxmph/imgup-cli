@@ -52,6 +52,7 @@ Should be ready to go at that point. See "Usage" below.
 - `--backend, -b` - To set the backend, i.e. `smugmug`, `flickr`, or `gotosocial`
 - `--format, -f` - To set the format of the snippet (org, md, or html)
 - `--verbose, -v` - Enable verbose output for debugging
+- `--fedi` - Also post to GoToSocial after uploading to primary backend
 
 For GoToSocial posts:
 - `--post` - The main text of your post
@@ -81,6 +82,13 @@ imgup --post "Concert photos!" \
   --image band1.jpg --desc "Opening act" \
   --image band2.jpg --desc "Main performance" \
   --tags concert,music
+
+# Upload to SmugMug/Flickr AND post to fediverse
+imgup --backend smugmug --fedi \
+  --post "Check out these photos from today's hike!" \
+  --image mountain.jpg --desc "View from the summit" \
+  --image trail.jpg --desc "Trail through the forest" \
+  --tags hiking,nature,photography
 ```
 
 By default, the snippet is printed to stdout. You can pipe it into `pbcopy` or similar to get it right on your clipboard.

@@ -35,7 +35,12 @@ module ImgupCli
         url:      url,
         markdown: "![#{@title}](#{url})",
         html:     "<img src=\"#{url}\" alt=\"#{@title}\">",
-        org:      "[[img:#{url}][#{@title}]]"
+        org:      "[[img:#{url}][#{@title}]]",
+        # Additional data for fedi integration
+        image_url: url,
+        title: @title,
+        caption: @caption,
+        tags: @tags
       }
     end
   end

@@ -22,7 +22,8 @@ module ImgupCli
         images: [],
         visibility: 'public',
         resize: nil,
-        verbose: false
+        verbose: false,
+        fedi: false
       }
 
       parser = OptionParser.new do |opts|
@@ -81,6 +82,10 @@ module ImgupCli
         opts.on('-v', '--verbose', 'Enable verbose output') do
           options[:verbose] = true
         end
+        
+        opts.on('--fedi', 'Also post to GoToSocial after upload') do
+          options[:fedi] = true
+        end
 
         opts.on('-h','--help','Show help') { puts opts; exit }
       end
@@ -125,6 +130,37 @@ module ImgupCli
           resize: options[:resize],
           verbose: options[:verbose]
         )
+      elsif options[:images].any? && options[:fedi]
+        # Multi-image upload to backend + fedi
+        results = []
+        options[:images].each_with_index do |img, idx|
+          puts "Uploading #{img[:path]}..." if options[:verbose]
+          uploader = Uploader.build(
+            options[:backend],
+            img[:path],
+            title:   img[:description] || File.basename(img[:path], '.*'),
+            caption: img[:description],
+            tags:    options[:tags]
+          )
+          results << uploader.call
+        end
+        
+        # Post all to fedi
+        require_relative 'fedi_poster'
+        poster = FediPoster.new(
+          results,
+          post_text: options[:post_text],
+          visibility: options[:visibility],
+          verbose: options[:verbose]
+        )
+        fedi_url = poster.post
+        
+        # Output results
+        results.each do |r|
+          puts r[options[:format].to_sym]
+        end
+        puts "\nPosted to fediverse: #{fedi_url}" if fedi_url
+        exit
       else
         # Traditional single-image mode
         image_path = args.first
@@ -143,6 +179,21 @@ module ImgupCli
       end
 
       result = uploader.call
+
+      # Handle fedi posting if requested
+      if options[:fedi] && options[:backend] != 'gotosocial'
+        require_relative 'fedi_poster'
+        poster = FediPoster.new(
+          result, 
+          post_text: options[:post_text],
+          visibility: options[:visibility],
+          verbose: options[:verbose]
+        )
+        fedi_url = poster.post
+        if fedi_url && options[:verbose]
+          puts "\nPosted to fediverse: #{fedi_url}"
+        end
+      end
 
       output = case options[:format]
                when 'org'  then result[:org]
