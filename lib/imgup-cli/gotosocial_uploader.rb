@@ -11,12 +11,13 @@ module ImgupCli
   class GotosocialUploader
     MAX_IMAGES = 4  # Mastodon API limit
     
-    def initialize(path = nil, images: [], post_text: nil, tags: [], visibility: 'public', resize: nil, **_opts)
+    def initialize(path = nil, images: [], post_text: nil, tags: [], visibility: 'public', resize: nil, verbose: false, **_opts)
       @images = images
       @post_text = post_text || ''
       @tags = Array(tags).map { |t| "##{t.gsub(/[^a-zA-Z0-9]/, '')}" }
       @visibility = visibility
       @resize = resize
+      @verbose = verbose
       
       cfg = Config.load
       @instance_url = cfg['gotosocial_instance'] || abort("❌ No GoToSocial instance configured")
@@ -36,7 +37,9 @@ module ImgupCli
       end
       
       # Give GoToSocial a moment to process the images
-      puts "⏳ Waiting for image processing..."
+      if @verbose
+        puts "⏳ Waiting for image processing..."
+      end
       sleep 2
       
       # Create the post
@@ -66,8 +69,10 @@ module ImgupCli
       # Log file info for debugging
       file_size = File.size(upload_path)
       file_type = mime_type(upload_path)
-      puts "    File: #{File.basename(upload_path)} (#{file_size} bytes, #{file_type})"
-      puts "    Resized from #{File.size(path)} bytes" if was_resized
+      if @verbose
+        puts "    File: #{File.basename(upload_path)} (#{file_size} bytes, #{file_type})"
+        puts "    Resized from #{File.size(path)} bytes" if was_resized
+      end
       
       File.open(upload_path, 'rb') do |file|
         req = Net::HTTP::Post::Multipart.new(uri.path,
@@ -84,9 +89,11 @@ module ImgupCli
         end
         
         # Log the returned media info
-        puts "    Media ID: #{data['id']}"
-        puts "    Preview URL: #{data['preview_url']}" if data['preview_url']
-        puts "    URL: #{data['url']}" if data['url']
+        if @verbose
+          puts "    Media ID: #{data['id']}"
+          puts "    Preview URL: #{data['preview_url']}" if data['preview_url']
+          puts "    URL: #{data['url']}" if data['url']
+        end
         
         # Clean up temp file if we resized
         FileUtils.rm_f(upload_path) if was_resized
@@ -120,7 +127,7 @@ module ImgupCli
       end
       
       # Log media attachment info
-      if data['media_attachments']
+      if @verbose && data['media_attachments']
         puts "\n📎 Media attachments in post:"
         data['media_attachments'].each do |att|
           puts "  - Type: #{att['type']}, URL: #{att['url']}"
@@ -166,7 +173,9 @@ module ImgupCli
       end
       
       # Debug output
-      puts "    Resize request: '#{@resize}' -> width: #{width.inspect}, height: #{height.inspect}"
+      if @verbose
+        puts "    Resize request: '#{@resize}' -> width: #{width.inspect}, height: #{height.inspect}"
+      end
       
       # Create temp file path
       temp_dir = File.join(Dir.tmpdir, 'imgup-resize')
@@ -183,38 +192,40 @@ module ImgupCli
         image = MiniMagick::Image.open(path)
         orig_width = image.width
         orig_height = image.height
-        puts "    Original: #{orig_width}x#{orig_height}"
+        if @verbose
+          puts "    Original: #{orig_width}x#{orig_height}"
+        end
         
         # Apply resize based on options
         if width && height
           # Fit within box while maintaining aspect ratio
           if orig_width > width || orig_height > height
             convert.resize "#{width}x#{height}>"
-            puts "    Resizing to fit within #{width}x#{height}"
+            puts "    Resizing to fit within #{width}x#{height}" if @verbose
           else
-            puts "    No resize needed"
+            puts "    No resize needed" if @verbose
             return path
           end
         elsif width && !height
           # Resize width, maintain aspect ratio
           if orig_width > width
             convert.resize "#{width}x>"
-            puts "    Resizing width to max #{width}px"
+            puts "    Resizing width to max #{width}px" if @verbose
           else
-            puts "    No resize needed"
+            puts "    No resize needed" if @verbose
             return path
           end
         elsif height && !width
           # Resize height, maintain aspect ratio  
           if orig_height > height
             convert.resize "x#{height}>"
-            puts "    Resizing height to max #{height}px"
+            puts "    Resizing height to max #{height}px" if @verbose
           else
-            puts "    No resize needed"
+            puts "    No resize needed" if @verbose
             return path
           end
         else
-          puts "    Invalid resize dimensions"
+          puts "    Invalid resize dimensions" if @verbose
           return path
         end
         
@@ -229,10 +240,10 @@ module ImgupCli
       # Verify the output
       if File.exist?(temp_path) && File.size(temp_path) > 1000
         resized_size = File.size(temp_path)
-        puts "    Resized file: #{resized_size} bytes"
+        puts "    Resized file: #{resized_size} bytes" if @verbose
         temp_path
       else
-        puts "    ERROR: Resize failed, using original"
+        puts "    ERROR: Resize failed, using original" if @verbose
         path
       end
     end

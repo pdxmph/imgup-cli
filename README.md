@@ -51,6 +51,7 @@ Should be ready to go at that point. See "Usage" below.
 - `--caption, -c` - To set the caption, which will act as the alt text/description for the snippet you get back
 - `--backend, -b` - To set the backend, i.e. `smugmug`, `flickr`, or `gotosocial`
 - `--format, -f` - To set the format of the snippet (org, md, or html)
+- `--verbose, -v` - Enable verbose output for debugging
 
 For GoToSocial posts:
 - `--post` - The main text of your post

@@ -21,7 +21,8 @@ module ImgupCli
         post_text: nil,
         images: [],
         visibility: 'public',
-        resize: nil
+        resize: nil,
+        verbose: false
       }
 
       parser = OptionParser.new do |opts|
@@ -76,6 +77,10 @@ module ImgupCli
         opts.on('--resize DIMENSIONS', 'Resize images (e.g., 1920x1920, 1200x)') do |r|
           options[:resize] = r
         end
+        
+        opts.on('-v', '--verbose', 'Enable verbose output') do
+          options[:verbose] = true
+        end
 
         opts.on('-h','--help','Show help') { puts opts; exit }
       end
@@ -117,7 +122,8 @@ module ImgupCli
           post_text: options[:post_text],
           tags: options[:tags],
           visibility: options[:visibility],
-          resize: options[:resize]
+          resize: options[:resize],
+          verbose: options[:verbose]
         )
       else
         # Traditional single-image mode
