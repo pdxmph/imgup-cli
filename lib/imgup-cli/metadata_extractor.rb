@@ -20,8 +20,8 @@ module ImgupCli
       
       # Try to load XMP data
       begin
-        file_content = File.read(path, mode: 'rb')
-        @xmp = XMP.parse(file_content) if file_content.include?('<x:xmpmeta')
+        # The XMP gem needs a file path, not content
+        @xmp = XMP.parse(File.open(path))
       rescue => e
         # Silent fail - not all images have XMP
       end
@@ -72,7 +72,18 @@ module ImgupCli
       # Try XMP title
       if @xmp && !title
         begin
-          title ||= @xmp.dc.title.first if @xmp.dc&.title
+          if @xmp.dc&.title
+            # XMP title can be a simple string or an array
+            title = case @xmp.dc.title
+                    when Array
+                      @xmp.dc.title.first
+                    when String
+                      @xmp.dc.title
+                    else
+                      # Handle rdf:Alt structure - try to get the value
+                      @xmp.dc.title.to_s if @xmp.dc.title.respond_to?(:to_s)
+                    end
+          end
         rescue
           # XMP structure can vary
         end
