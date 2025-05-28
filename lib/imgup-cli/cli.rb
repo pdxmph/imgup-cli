@@ -256,11 +256,9 @@ module ImgupCli
           config_prefix: config_prefix
         )
         fedi_url = poster.post
-        if fedi_url && options[:verbose]
-          puts "\nPosted to #{options[:mastodon] ? 'Mastodon' : 'GoToSocial'}: #{fedi_url}"
-        end
       end
 
+      # Output the snippet first
       output = case options[:format]
                when 'org'  then result[:org]
                when 'html' then result[:html]
@@ -268,6 +266,11 @@ module ImgupCli
                end
 
       puts output
+      
+      # Then show social media post info
+      if (options[:gotosocial] || options[:mastodon]) && fedi_url
+        puts "\nPosted to #{options[:mastodon] ? 'Mastodon' : 'GoToSocial'}: #{fedi_url}"
+      end
     end
   end
 end

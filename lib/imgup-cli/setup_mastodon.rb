@@ -35,7 +35,7 @@ module ImgupCli
         )
         Config.save(cfg)
         puts "\n✅ Mastodon setup complete!"
-        puts "You can now use --backend mastodon or --backend gotosocial"
+        puts "You can now use --mastodon to post images after uploading"
       else
         puts "\n❌ Failed to connect. Please check your instance URL and token."
       end
