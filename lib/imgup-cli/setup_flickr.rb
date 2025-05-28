@@ -10,11 +10,40 @@ module ImgupCli
     def self.run
       creds = Config.load
 
-      FlickRaw.api_key       = creds['flickr_key']    || ask("Flickr API Key")
-      FlickRaw.shared_secret = creds['flickr_secret'] || ask("Flickr Secret")
+      # Get API credentials
+      api_key = creds['flickr_key'] || ask("Flickr API Key")
+      api_secret = creds['flickr_secret'] || ask("Flickr Secret")
+      
+      # Trim whitespace that might cause issues
+      api_key = api_key.strip
+      api_secret = api_secret.strip
+      
+      # Save credentials immediately to avoid losing them on error
+      creds['flickr_key'] = api_key
+      creds['flickr_secret'] = api_secret
+      Config.save(creds)
+      
+      # Set up FlickRaw
+      FlickRaw.api_key = api_key
+      FlickRaw.shared_secret = api_secret
 
       flickr = FlickRaw::Flickr.new
-      token  = flickr.get_request_token(oauth_callback: CALLBACK)
+      
+      begin
+        token = flickr.get_request_token(oauth_callback: CALLBACK)
+      rescue FlickRaw::OAuthClient::FailedResponse => e
+        if e.message.include?('signature_invalid')
+          puts "\n❌ OAuth signature invalid. This could mean:"
+          puts "   - The API key or secret is incorrect"
+          puts "   - Your system clock is out of sync"
+          puts "   - The credentials need to be regenerated"
+          puts "\nPlease verify your API credentials at:"
+          puts "https://www.flickr.com/services/apps/by/me"
+          raise
+        else
+          raise
+        end
+      end
       auth_url = flickr.get_authorize_url(token['oauth_token'], perms: 'write')
 
       puts "Authorize here:\n\n  #{auth_url}\n\n"
