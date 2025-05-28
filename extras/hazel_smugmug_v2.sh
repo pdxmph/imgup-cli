@@ -1,13 +1,12 @@
 #!/bin/zsh -l
-# hazel_smugmug_v2.sh - Updated to use imgup-cli's metadata extraction
-# Hazel "Run shell script" (Shell=/bin/zsh, Pass matched files to shell script: as arguments)
+# Updated Hazel "Run shell script" for metadata-aware imgup
+# Shell=/bin/zsh, Pass matched files to shell script: as arguments
 
-# send all output to debug log
 set -euo pipefail
 
-# ensure tools in PATH
+# Process each file
 for F in "$@"; do
-    # resolve absolute path
+    # Resolve absolute path
     FILE=$(realpath "$F")
     echo "--> Processing: $FILE"
 
@@ -16,24 +15,32 @@ for F in "$@"; do
         continue
     }
 
-    # The new imgup-cli will extract metadata automatically!
-    # We just need to call it - no more manual exiftool extraction
-    echo "   Uploading with automatic metadata extraction..."
+    # Use imgup's new metadata extraction
+    # The --verbose flag will show what metadata was extracted
+    # The tool will automatically extract alt text from IPTC/XMP
+    echo "   Running imgup with automatic metadata extraction..."
     
-    # call imgup CLI with metadata extraction (default behavior)
     SNIP=$(
-        imgup --format org "$FILE"
+        cd ~/code/imgup-cli
+        rbenv exec bundle exec bin/imgup \
+            --format org \
+            --verbose \
+            "$FILE"
     )
-    echo "   snippet: $SNIP"
+    
+    # Extract just the snippet line (not the verbose output)
+    SNIPPET_LINE=$(echo "$SNIP" | grep -E '^\[\[img:' | head -n1)
+    
+    echo "   Snippet: $SNIPPET_LINE"
 
-    # copy & notify
-    printf '%s' "$SNIP" | pbcopy
-    terminal-notifier -title "SmugMug Upload" -message "Snippet ready" -sound default
-    echo "   snippet copied & notified"
+    # Copy to clipboard
+    printf '%s' "$SNIPPET_LINE" | pbcopy
+    terminal-notifier -title "SmugMug Upload" -message "Snippet ready with metadata" -sound default
+    echo "   Snippet copied & notified"
 
-    # archive original
+    # Archive original
     ARCHIVE="$HOME/Uploads/Uploaded"
     mkdir -p "$ARCHIVE"
     mv "$FILE" "$ARCHIVE/"
-    echo "   moved to $ARCHIVE/"
+    echo "   Moved to $ARCHIVE/"
 done
