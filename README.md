@@ -59,10 +59,17 @@ Should be ready to go at that point. See "Usage" below.
 ### Basic Options
 - `--title, -t` - To set the image title, for purposes of display on flickr or SmugMug
 - `--caption, -c` - To set the caption, which will act as the alt text/description
+- `--alt-text` - Explicitly set alt text for accessibility (overrides caption)
 - `--backend, -b` - To set the backend, i.e. `smugmug` or `flickr`
 - `--format, -f` - To set the format of the snippet (org, md, or html)
 - `--tags` - Comma-separated tags
 - `--verbose, -v` - Enable verbose output for debugging
+
+### Metadata Options
+- `--review` - Review and edit metadata before upload
+- `--no-extract` - Disable automatic metadata extraction from images
+
+**Note**: imgup automatically extracts metadata from your images (title, description, keywords) if available in EXIF/IPTC/XMP fields.
 
 ### Social Posting Options
 - `--mastodon` - Also post to Mastodon after uploading to primary backend
@@ -80,6 +87,19 @@ Should be ready to go at that point. See "Usage" below.
 Basic upload:
 
 `imgup -t "An Old House" -c "A spooky old house sits alone on a street at sunset." -f md your_image.jpg`
+
+With automatic metadata extraction (from photo's embedded data):
+
+```bash
+# Let imgup extract title, alt text, and tags from the image
+imgup photo.jpg
+
+# Review extracted metadata before upload
+imgup --review photo.jpg
+
+# Override just the alt text
+imgup --alt-text "A red barn in a wheat field" photo.jpg
+```
 
 Upload and post to Mastodon:
 
