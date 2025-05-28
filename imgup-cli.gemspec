@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.version       = ImgupCli::VERSION
   spec.authors       = ["Mike Hall"]
   spec.email         = ["mike@puddingtime.org"]
-  spec.summary       = "Command-line tool for uploading images to SmugMug"
+  spec.summary       = "Command-line tool for uploading images to SmugMug and Flickr; posting to fediverse"
   spec.description   = "CLI component extracted from imgup Sinatra app"
   spec.homepage      = "https://github.com/pdxmph/imgup-cli"
   spec.license       = "MIT"
