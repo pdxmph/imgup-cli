@@ -1,10 +1,10 @@
 # imgup: Smugmug and flickr uploads from the command line
 
 ## Description 
-Provides a command line uploader to SmugMug and/or flickr that returns snippets in HTML, org-mode, or Markdown suitable for pasting into a blog post.
+Provides a command line uploader to SmugMug and/or flickr that returns snippets in HTML, org-mode, or Markdown suitable for pasting into a blog post. Optionally creates posts of those images to Mastodon and/or gotosocial. 
 
 ## Reason for existence
-If you're all in on SmugMug or flickr and would prefer their higher-quality image embeds over what your own blogging provider might do, or if you move blogging tools around a lot and don't want to manage the media assets, this is a quick way to get usable markup you can drop into a blogpost.
+If you're all in on SmugMug or flickr and would prefer their higher-quality image embeds over what your own blogging provider might do, or if you move blogging tools around a lot and don't want to manage the media assets, this is a quick way to get usable markup you can drop into a blogpost. If you prefer to share the image over social media, there are options to add it to a post for Mastodon or gotosocial. 
 
 ## SmugMug Setup
 
@@ -33,7 +33,7 @@ Should be ready to go at that point. See "Usage" below.
 
 Should be ready to go at that point. See "Usage" below.
 
-## Mastodon Setup (Simplified)
+## Mastodon Setup
 
 1. Go to your Mastodon instance's `/settings/applications`
 2. Create a new application
@@ -43,13 +43,12 @@ Should be ready to go at that point. See "Usage" below.
 
 Should be ready to go at that point. See "Usage" below.
 
-## GoToSocial / Fediverse Setup
+## GoToSocial Setup
 
-1. Create an OAuth application on your GoToSocial instance at `/settings/applications/new`
-2. Install the gem
+1. Go to your GoToSocial instance
+2. Settings → Applications → New Application
 3. Run `imgup setup gotosocial`
-4. Provide your instance URL, Client ID, and Client Secret
-5. Authenticate in your browser
+4. Provide your instance URL and credentials
 
 Should be ready to go at that point. See "Usage" below.
 
@@ -57,30 +56,52 @@ Should be ready to go at that point. See "Usage" below.
 
 `imgup` takes a few arguments:
 
+### Basic Options
 - `--title, -t` - To set the image title, for purposes of display on flickr or SmugMug
-- `--caption, -c` - To set the caption, which will act as the alt text/description for the snippet you get back
+- `--caption, -c` - To set the caption, which will act as the alt text/description
 - `--backend, -b` - To set the backend, i.e. `smugmug` or `flickr`
 - `--format, -f` - To set the format of the snippet (org, md, or html)
+- `--tags` - Comma-separated tags
 - `--verbose, -v` - Enable verbose output for debugging
-- `--fedi` - Also post to GoToSocial after uploading to primary backend
-- `--mastodon` - Also post to Mastodon after uploading to primary backend
 
-For GoToSocial/Mastodon posts:
-- `--post` - The main text of your post
+### Social Posting Options
+- `--mastodon` - Also post to Mastodon after uploading to primary backend
+- `--gotosocial` - Also post to GoToSocial after uploading to primary backend
+- `--post` - The main text of your social media post (requires --mastodon or --gotosocial)
+- `--visibility` - Post visibility: public, unlisted, private, or direct (default: public)
+
+### Multi-Image Options (for social posts)
 - `--image` - Path to an image (can be used multiple times)
 - `--desc` - Description/alt text for the most recently added image
-- `--visibility` - Post visibility: public, unlisted, private, or direct (default: public)
-- `--tags` - Comma-separated tags (will be converted to hashtags)
 - `--resize` - Resize images before upload (e.g., 1920x1920, 1200x, x800)
 
-Example:
+### Examples
+
+Basic upload:
 
 `imgup -t "An Old House" -c "A spooky old house sits alone on a street at sunset." -f md your_image.jpg`
 
-GoToSocial example:
+Upload and post to Mastodon:
 
 ```bash
-imgup --post "Beautiful day at the Oregon coast!" \
+# Simple post with single image
+imgup --mastodon --post "Beautiful sunset tonight!" \
+  --caption "Sunset over the Pacific Ocean" \
+  sunset.jpg
+
+# With tags and custom visibility
+imgup --mastodon --post "New photos from today's hike!" \
+  --caption "Trail views from Mt. Hood" \
+  --tags photography,oregon,hiking \
+  --visibility unlisted \
+  mountain.jpg
+```
+
+Multi-image posts to GoToSocial:
+
+```bash
+# Post multiple images
+imgup --gotosocial --post "Beautiful day at the Oregon coast!" \
   --image sunset.jpg --desc "Sunset at Cannon Beach" \
   --image tidepools.jpg --desc "Found some amazing creatures" \
   --image lighthouse.jpg --desc "Heceta Head lighthouse" \
@@ -88,24 +109,11 @@ imgup --post "Beautiful day at the Oregon coast!" \
   --visibility public
 
 # With automatic image resizing for better federation
-imgup --post "Concert photos!" \
+imgup --gotosocial --post "Concert photos!" \
   --resize 1920x1920 \
   --image band1.jpg --desc "Opening act" \
   --image band2.jpg --desc "Main performance" \
   --tags concert,music
-
-# Upload to SmugMug/Flickr AND post to fediverse
-imgup --backend smugmug --fedi \
-  --post "Check out these photos from today's hike!" \
-  --image mountain.jpg --desc "View from the summit" \
-  --image trail.jpg --desc "Trail through the forest" \
-  --tags hiking,nature,photography
-
-# Or post to Mastodon specifically
-imgup --backend flickr --mastodon \
-  --post "New photos up!" \
-  --image photo1.jpg --desc "First shot" \
-  --tags photography
 ```
 
 By default, the snippet is printed to stdout. You can pipe it into `pbcopy` or similar to get it right on your clipboard.
@@ -119,8 +127,6 @@ You can save a few arguments in the CLI or your scripts if you set the default b
 Format options: `md`, `org`, `html`
 
 Backend options: `smugmug`, `flickr`
-
-Social sharing options: `--fedi` (GoToSocial), `--mastodon` (Mastodon)
 
 
 ## org snippets
@@ -138,6 +144,7 @@ The org snippet leverages a custom image link type:
 
 ## TODO
 
+- Add Bluesky to posting targets
 - improve onboarding for SmugMug
 - Expand to work with imgur
 - Provide an upload history in case you lose a snippet and don't have clipboard history

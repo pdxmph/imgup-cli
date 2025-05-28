@@ -17,18 +17,18 @@ module ImgupCli
         title:   nil,
         caption: nil,
         tags:    [],
-        # New options for social posting
+        # Social posting options
         post_text: nil,
         images: [],
         visibility: 'public',
         resize: nil,
         verbose: false,
-        fedi: false,
+        gotosocial: false,
         mastodon: false
       }
 
       parser = OptionParser.new do |opts|
-        opts.banner = 'Usage: imgup [setup] | [options] <image_path> | [--post options]'
+        opts.banner = 'Usage: imgup [setup] | [options] <image_path>'
 
         opts.on('--set-backend BACKEND', 'Persist default backend') do |b|
           cfg['default_backend'] = b
@@ -48,15 +48,13 @@ module ImgupCli
         opts.on('-f F','--format F',%w[org md html],'Select output format') { |f| options[:format] = f }
         opts.on('-t T','--title T','Image title')    { |t| options[:title]   = t }
         opts.on('-c C','--caption C','Image caption'){ |c| options[:caption] = c }
-
         opts.on('--tags TAGS','Comma-separated tags') do |t|
           options[:tags] = t.split(/,\s*/)
         end
 
-        # New GoToSocial options
-        opts.on('--post TEXT', 'Main post text (for gotosocial)') do |p| 
+        # Social posting options
+        opts.on('--post TEXT', 'Post text for social platforms (requires --mastodon or --gotosocial)') do |p| 
           options[:post_text] = p
-          options[:backend] = 'gotosocial' # Auto-switch to gotosocial
         end
         
         opts.on('--image PATH', 'Add an image (can be used multiple times)') do |path|
@@ -84,8 +82,8 @@ module ImgupCli
           options[:verbose] = true
         end
         
-        opts.on('--fedi', 'Also post to GoToSocial/Fediverse after upload') do
-          options[:fedi] = true
+        opts.on('--gotosocial', 'Also post to GoToSocial after upload') do
+          options[:gotosocial] = true
         end
         
         opts.on('--mastodon', 'Also post to Mastodon after upload') do
@@ -94,7 +92,6 @@ module ImgupCli
 
         opts.on('-h','--help','Show help') { puts opts; exit }
       end
-
       if args.first == 'setup'
         target = args[1] || 'smugmug'
         case target
@@ -121,8 +118,14 @@ module ImgupCli
 
       parser.parse!(args)
       
+      # Validation: --post requires either --mastodon or --gotosocial
+      if options[:post_text] && !options[:mastodon] && !options[:gotosocial]
+        STDERR.puts "Error: --post requires either --mastodon or --gotosocial"
+        STDERR.puts parser
+        exit 1
+      end      
       # Handle different modes
-      if options[:images].any? && (options[:fedi] || options[:mastodon])
+      if options[:images].any? && (options[:gotosocial] || options[:mastodon])
         # Multi-image upload to backend + social sharing
         results = []
         options[:images].each_with_index do |img, idx|
@@ -138,49 +141,46 @@ module ImgupCli
         end
         
         # Post to social platforms
-        if options[:fedi] || options[:mastodon]
-          require_relative 'fedi_poster'
-          
-          # Use appropriate config based on flag
-          config_prefix = options[:mastodon] ? 'mastodon' : 'gotosocial'
-          
-          poster = FediPoster.new(
-            results,
-            post_text: options[:post_text],
-            visibility: options[:visibility],
-            verbose: options[:verbose],
-            config_prefix: config_prefix
-          )
-          fedi_url = poster.post
-          
-          # Output results
-          results.each do |r|
-            puts r[options[:format].to_sym]
-          end
-          puts "\nPosted to #{options[:mastodon] ? 'Mastodon' : 'fediverse'}: #{fedi_url}" if fedi_url
-          exit
-        end
-      else
-        # Traditional single-image mode
-        image_path = args.first
-        unless image_path && File.file?(image_path)
-          STDERR.puts parser
-          exit 1
-        end
-
-        uploader = Uploader.build(
-          options[:backend],
-          image_path,
-          title:   options[:title],
-          caption: options[:caption],
-          tags:    options[:tags]
+        require_relative 'fedi_poster'
+        
+        # Use appropriate config based on flag
+        config_prefix = options[:mastodon] ? 'mastodon' : 'gotosocial'
+        
+        poster = FediPoster.new(
+          results,
+          post_text: options[:post_text],
+          visibility: options[:visibility],
+          verbose: options[:verbose],
+          config_prefix: config_prefix
         )
+        fedi_url = poster.post
+        
+        # Output results
+        results.each do |r|
+          puts r[options[:format].to_sym]
+        end
+        puts "\nPosted to #{options[:mastodon] ? 'Mastodon' : 'GoToSocial'}: #{fedi_url}" if fedi_url
+        exit
+      end      
+      # Traditional single-image mode
+      image_path = args.first
+      unless image_path && File.file?(image_path)
+        STDERR.puts parser
+        exit 1
       end
 
+      uploader = Uploader.build(
+        options[:backend],
+        image_path,
+        title:   options[:title],
+        caption: options[:caption],
+        tags:    options[:tags]
+      )
+      
       result = uploader.call
 
-      # Handle fedi/mastodon posting if requested
-      if (options[:fedi] || options[:mastodon]) && options[:backend] != 'gotosocial'
+      # Handle social posting if requested
+      if options[:gotosocial] || options[:mastodon]
         require_relative 'fedi_poster'
         
         # Use appropriate config based on flag
@@ -195,7 +195,7 @@ module ImgupCli
         )
         fedi_url = poster.post
         if fedi_url && options[:verbose]
-          puts "\nPosted to #{options[:mastodon] ? 'Mastodon' : 'fediverse'}: #{fedi_url}"
+          puts "\nPosted to #{options[:mastodon] ? 'Mastodon' : 'GoToSocial'}: #{fedi_url}"
         end
       end
 

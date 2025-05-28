@@ -122,7 +122,7 @@ module ImgupCli
         markdown: "![#{@title}](#{full_url})",
         html:     "<img src=\"#{full_url}\" alt=\"#{@title}\" />",
         org:      "[[img:#{full_url}][#{@title}]]",
-        # Additional data for fedi integration
+        # Additional data for social media integration
         image_url: full_url,
         title: @title,
         caption: @caption,
