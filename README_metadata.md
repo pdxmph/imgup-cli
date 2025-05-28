@@ -35,7 +35,7 @@ Keywords      → bridge, sunset, california   → imgup extracts as tags
 - ✅ Include: All Metadata
 - ✅ Write Keywords as Lightroom Hierarchy
 
-### Apple Photos
+### Apple Photos ✅
 
 Set these fields in the Info panel (⌘I):
 
@@ -48,6 +48,8 @@ Keywords      → bridge, sunset, california   → imgup extracts as tags
 **Export Settings:**
 - Choose: JPEG - High Quality
 - ✅ Include: Title, Keywords, Description, and Location Info
+
+**Note**: Apple Photos writes metadata to XMP fields which imgup now properly reads.
 ### Capture One
 
 Set in the Metadata tool:
