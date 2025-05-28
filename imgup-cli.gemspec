@@ -22,6 +22,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency "webrick",   "~> 1.7"
   spec.add_dependency "mini_magick", "~> 4.12"
   spec.add_dependency "flickraw",  "~> 0.9"
+  spec.add_dependency "exifr", "~> 1.4"
+  spec.add_dependency "xmp", "~> 1.0"
 
   spec.add_development_dependency "rspec",   "~> 3.10"
   spec.add_development_dependency "webmock", "~> 3.15"

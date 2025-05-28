@@ -97,7 +97,7 @@ module ImgupCli
         end
         
         # Upload to GoToSocial
-        upload_to_gotosocial(temp_file.path, result[:caption] || result[:title])
+        upload_to_gotosocial(temp_file.path, result[:alt_text] || result[:caption] || result[:title])
       ensure
         temp_file.close
         temp_file.unlink

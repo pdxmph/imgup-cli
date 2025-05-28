@@ -1,13 +1,16 @@
 PATH
   remote: .
   specs:
-    imgup-cli (0.10.0)
+    imgup-cli (0.13.0)
       dotenv (~> 2.7)
+      exifr (~> 1.4)
+      flickraw (~> 0.9)
       launchy (~> 3.0)
       mini_magick (~> 4.12)
       multipart-post (~> 2.1)
       oauth (~> 0.5)
       webrick (~> 1.7)
+      xmp (~> 1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -22,6 +25,7 @@ GEM
       rexml
     diff-lcs (1.6.1)
     dotenv (2.8.1)
+    exifr (1.4.1)
     flickraw (0.9.10)
     hashdiff (1.1.2)
     hashie (5.0.0)
@@ -31,11 +35,32 @@ GEM
       logger (~> 1.6)
     logger (1.7.0)
     mini_magick (4.13.2)
+    mini_portile2 (2.8.9)
     multipart-post (2.4.1)
+    nokogiri (1.18.8)
+      mini_portile2 (~> 2.8.2)
+      racc (~> 1.4)
+    nokogiri (1.18.8-aarch64-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.18.8-aarch64-linux-musl)
+      racc (~> 1.4)
+    nokogiri (1.18.8-arm-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.18.8-arm-linux-musl)
+      racc (~> 1.4)
+    nokogiri (1.18.8-arm64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.18.8-x86_64-darwin)
+      racc (~> 1.4)
+    nokogiri (1.18.8-x86_64-linux-gnu)
+      racc (~> 1.4)
+    nokogiri (1.18.8-x86_64-linux-musl)
+      racc (~> 1.4)
     oauth (0.6.2)
       snaky_hash (~> 2.0)
       version_gem (~> 1.1)
     public_suffix (6.0.2)
+    racc (1.8.1)
     rexml (3.4.1)
     rspec (3.13.0)
       rspec-core (~> 3.13.0)
@@ -59,6 +84,8 @@ GEM
       crack (>= 0.3.2)
       hashdiff (>= 0.4.0, < 2.0.0)
     webrick (1.9.1)
+    xmp (1.0.1)
+      nokogiri (~> 1.0)
 
 PLATFORMS
   aarch64-linux-gnu
@@ -84,4 +111,4 @@ DEPENDENCIES
   webrick
 
 BUNDLED WITH
-   2.6.7
+   2.6.9

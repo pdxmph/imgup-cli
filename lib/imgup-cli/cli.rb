@@ -16,7 +16,10 @@ module ImgupCli
         format:  cfg['default_format']  || 'md',
         title:   nil,
         caption: nil,
+        alt_text: nil,
         tags:    [],
+        extract_metadata: true,
+        review: false,
         # Social posting options
         post_text: nil,
         images: [],
@@ -48,6 +51,9 @@ module ImgupCli
         opts.on('-f F','--format F',%w[org md html],'Select output format') { |f| options[:format] = f }
         opts.on('-t T','--title T','Image title')    { |t| options[:title]   = t }
         opts.on('-c C','--caption C','Image caption'){ |c| options[:caption] = c }
+        opts.on('--alt-text TEXT', 'Alt text for accessibility') { |a| options[:alt_text] = a }
+        opts.on('--no-extract', 'Disable automatic metadata extraction') { options[:extract_metadata] = false }
+        opts.on('--review', 'Review and edit metadata before upload') { options[:review] = true }
         opts.on('--tags TAGS','Comma-separated tags') do |t|
           options[:tags] = t.split(/,\s*/)
         end
@@ -169,11 +175,67 @@ module ImgupCli
         exit 1
       end
 
+      # Extract metadata if enabled
+      if options[:extract_metadata]
+        require_relative 'metadata_extractor'
+        begin
+          metadata = MetadataExtractor.new(image_path).extract
+          
+          # Use extracted values as defaults, but CLI options override
+          options[:alt_text] ||= metadata[:alt_text]
+          options[:title] ||= metadata[:title]
+          options[:caption] ||= metadata[:caption]
+          options[:tags] = (options[:tags] + metadata[:tags]).uniq if metadata[:tags].any?
+          
+          puts "Extracted metadata from image:" if options[:verbose]
+          puts "  Alt text: #{options[:alt_text]}" if options[:verbose] && options[:alt_text]
+          puts "  Title: #{options[:title]}" if options[:verbose] && options[:title]
+          puts "  Tags: #{options[:tags].join(', ')}" if options[:verbose] && options[:tags].any?
+        rescue => e
+          puts "Warning: Could not extract metadata: #{e.message}" if options[:verbose]
+        end
+      end
+      
+      # Review metadata if requested
+      if options[:review]
+        puts "\nMetadata for upload:"
+        puts "  Title: #{options[:title] || '(none)'}"
+        puts "  Alt text: #{options[:alt_text] || '(none)'}"
+        puts "  Caption: #{options[:caption] || '(none)'}"
+        puts "  Tags: #{options[:tags].any? ? options[:tags].join(', ') : '(none)'}"
+        
+        print "\nProceed with upload? (y/n/e[dit]): "
+        response = STDIN.gets.chomp.downcase
+        
+        if response == 'e' || response == 'edit'
+          # Simple editing interface
+          print "Title [#{options[:title]}]: "
+          input = STDIN.gets.chomp
+          options[:title] = input unless input.empty?
+          
+          print "Alt text [#{options[:alt_text]}]: "
+          input = STDIN.gets.chomp
+          options[:alt_text] = input unless input.empty?
+          
+          print "Caption [#{options[:caption]}]: "
+          input = STDIN.gets.chomp
+          options[:caption] = input unless input.empty?
+          
+          print "Tags (comma-separated) [#{options[:tags].join(', ')}]: "
+          input = STDIN.gets.chomp
+          options[:tags] = input.split(/,\s*/) unless input.empty?
+        elsif response != 'y'
+          puts "Upload cancelled."
+          exit
+        end
+      end
+
       uploader = Uploader.build(
         options[:backend],
         image_path,
         title:   options[:title],
         caption: options[:caption],
+        alt_text: options[:alt_text],
         tags:    options[:tags]
       )
       

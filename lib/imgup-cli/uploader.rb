@@ -20,11 +20,13 @@ module ImgupCli
         SmugMugUploader.new(path, 
           title: options[:title], 
           caption: options[:caption], 
+          alt_text: options[:alt_text],
           tags: options[:tags])
       when 'flickr'
         FlickrUploader.new(path, 
           title: options[:title], 
           caption: options[:caption], 
+          alt_text: options[:alt_text],
           tags: options[:tags])
       when 'gotosocial'
         require_relative 'gotosocial_uploader'

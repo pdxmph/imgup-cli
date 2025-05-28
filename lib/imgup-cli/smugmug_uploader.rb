@@ -13,11 +13,12 @@ module ImgupCli
     API_BASE   = 'https://api.smugmug.com'
     UPLOAD_URL = 'https://upload.smugmug.com/'
 
-    def initialize(path, title:, caption:, tags: [])
-      @path    = path
-      @title   = title    || File.basename(path, '.*')
-      @caption = caption  || ''
-      @tags    = Array(tags).map(&:strip)
+    def initialize(path, title:, caption:, alt_text:, tags: [])
+      @path     = path
+      @title    = title    || File.basename(path, '.*')
+      @caption  = caption  || ''
+      @alt_text = alt_text || @caption || ''
+      @tags     = Array(tags).map(&:strip)
 
       cfg = Config.load
       @consumer_key        = cfg['consumer_key']
@@ -119,13 +120,14 @@ module ImgupCli
     def build_result(full_url)
       {
         url:      full_url,
-        markdown: "![#{@title}](#{full_url})",
-        html:     "<img src=\"#{full_url}\" alt=\"#{@title}\" />",
-        org:      "[[img:#{full_url}][#{@title}]]",
+        markdown: "![#{@alt_text}](#{full_url})",
+        html:     "<img src=\"#{full_url}\" alt=\"#{@alt_text}\" />",
+        org:      "[[img:#{full_url}][#{@alt_text}]]",
         # Additional data for social media integration
         image_url: full_url,
         title: @title,
         caption: @caption,
+        alt_text: @alt_text,
         tags: @tags
       }
     end

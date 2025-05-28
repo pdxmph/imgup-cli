@@ -4,11 +4,12 @@ require_relative 'config'
 module ImgupCli
   # Handles upload to Flickr, now with tag support.
   class FlickrUploader
-    def initialize(path, title:, caption:, tags: [])
-      @path    = path
-      @title   = title || File.basename(path, '.*')
-      @caption = caption.to_s
-      @tags    = Array(tags).map(&:strip)
+    def initialize(path, title:, caption:, alt_text:, tags: [])
+      @path     = path
+      @title    = title || File.basename(path, '.*')
+      @caption  = caption.to_s
+      @alt_text = alt_text || @caption || ''
+      @tags     = Array(tags).map(&:strip)
 
       creds = Config.load
       FlickRaw.api_key       = creds['flickr_key']
@@ -33,13 +34,14 @@ module ImgupCli
 
       {
         url:      url,
-        markdown: "![#{@title}](#{url})",
-        html:     "<img src=\"#{url}\" alt=\"#{@title}\">",
-        org:      "[[img:#{url}][#{@title}]]",
+        markdown: "![#{@alt_text}](#{url})",
+        html:     "<img src=\"#{url}\" alt=\"#{@alt_text}\">",
+        org:      "[[img:#{url}][#{@alt_text}]]",
         # Additional data for social media integration
         image_url: url,
         title: @title,
         caption: @caption,
+        alt_text: @alt_text,
         tags: @tags
       }
     end
