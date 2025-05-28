@@ -11,7 +11,8 @@ module ImgupCli
   # Posts to GoToSocial using URLs from other services
   class FediPoster
     def initialize(upload_results, post_text: nil, visibility: 'public', verbose: false, config_prefix: 'gotosocial')
-      @upload_results = Array(upload_results) # Support single or multiple
+      # Properly handle single result (hash) vs multiple results (array)
+      @upload_results = upload_results.is_a?(Array) ? upload_results : [upload_results]
       @post_text = post_text
       @visibility = visibility
       @verbose = verbose
